@@ -50,20 +50,38 @@
   // TODO generate plausible wrong answers
   let wrong = [answer, answer, answer, answer, answer, answer, answer];
 
-  // set theme class on html element so that it applies to overflow on all devices
-  document.documentElement.classList.add(`neu-${$theme}`);
+  // get theme from localStorage or use light by default
+  theme.set(localStorage.getItem("theme") ?? "neu-light");
+
+  // update localStorage and html class whenever the theme writable changes
+  theme.subscribe((current) => {
+    localStorage.setItem("theme", current);
+    document.documentElement.classList.remove("neu-light", "neu-dark");
+    document.documentElement.classList.add(current);
+  });
 </script>
 
 <main>
+  <button
+    class="btn rounded-1 neu-concave neu-small"
+    data-neu-click="neu-pressed"
+    on:click={() => {
+      theme.update((current) =>
+        current === "neu-light" ? "neu-dark" : "neu-light"
+      );
+    }}
+  >
+    DARK MODE
+  </button>
   <Grid {cells} />
   <Answers {answer} {wrong} />
 </main>
 
 <style>
   main {
-    display: grid;
-    place-items: center;
-    background-size: 100% 100%;
-    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
   }
 </style>
