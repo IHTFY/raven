@@ -1,7 +1,7 @@
 <script>
   import Grid from "./Grid.svelte";
   import Answers from "./Answers.svelte";
-  import { theme } from "./stores.js";
+  import DarkMode from "./DarkMode.svelte";
 
   let cells = [
     [
@@ -49,30 +49,10 @@
 
   // TODO generate plausible wrong answers
   let wrong = [answer, answer, answer, answer, answer, answer, answer];
-
-  // get theme from localStorage or use light by default
-  theme.set(localStorage.getItem("theme") ?? "neu-light");
-
-  // update localStorage and html class whenever the theme writable changes
-  theme.subscribe((current) => {
-    localStorage.setItem("theme", current);
-    document.documentElement.classList.remove("neu-light", "neu-dark");
-    document.documentElement.classList.add(current);
-  });
 </script>
 
 <main>
-  <button
-    class="btn rounded-1 neu-concave neu-small"
-    data-neu-click="neu-pressed"
-    on:click={() => {
-      theme.update((current) =>
-        current === "neu-light" ? "neu-dark" : "neu-light"
-      );
-    }}
-  >
-    DARK MODE
-  </button>
+  <DarkMode />
   <Grid {cells} />
   <Answers {answer} {wrong} />
 </main>
