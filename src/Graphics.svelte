@@ -1,4 +1,14 @@
 <script>
+  import { theme } from "./stores.js";
+
+  // update color based on theme
+  let same;
+  let contrast;
+  theme.subscribe((current) => {
+    [same, contrast] =
+      current === "neu-light" ? ["#e5e5e5", "#222"] : ["#222", "#e5e5e5"];
+  });
+
   export let config;
 </script>
 
@@ -8,7 +18,7 @@
       width="100%"
       height="100%"
       fill="none"
-      stroke="black"
+      stroke={contrast}
       stroke-width="3%"
     />
     <line
@@ -16,7 +26,7 @@
       y1="0%"
       x2="33.333%"
       y2="100%"
-      stroke="black"
+      stroke={contrast}
       stroke-width="2%"
     />
     <line
@@ -24,7 +34,7 @@
       y1="0%"
       x2="66.666%"
       y2="100%"
-      stroke="black"
+      stroke={contrast}
       stroke-width="2%"
     />
     <line
@@ -32,7 +42,7 @@
       y1="33.333%"
       x2="100%"
       y2="33.333%"
-      stroke="black"
+      stroke={contrast}
       stroke-width="2%"
     />
     <line
@@ -40,7 +50,7 @@
       y1="66.666%"
       x2="100%"
       y2="66.666%"
-      stroke="black"
+      stroke={contrast}
       stroke-width="2%"
     />
     {#each config.grid.placement as coords}
@@ -50,7 +60,8 @@
           y={`${coords.y * 33.333}%`}
           width="33.333%"
           height="33.333%"
-          stroke="black"
+          stroke={contrast}
+          fill={contrast}
         />
       {/if}
     {/each}
