@@ -48,8 +48,8 @@ Which best follows the pattern?
 
 <style>
   .answers {
-    width: 800px;
-    height: 400px;
+    aspect-ratio: 2;
+    max-height: 33.333vh;
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(2, 1fr);

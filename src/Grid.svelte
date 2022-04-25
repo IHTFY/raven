@@ -15,8 +15,8 @@
 
 <style>
   .grid {
-    width: 600px;
-    height: 600px;
+    max-height: 50vh;
+    aspect-ratio: 1;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
@@ -28,6 +28,6 @@
     display: grid;
     place-items: center;
     aspect-ratio: 1;
-    font-size: 7rem;
+    font-size: 10vh;
   }
 </style>
