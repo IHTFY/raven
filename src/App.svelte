@@ -2,6 +2,7 @@
   import Header from "./Header.svelte";
   import Grid from "./Grid.svelte";
   import Answers from "./Answers.svelte";
+  import Slider from "./Slider.svelte";
 
   let cells = [
     [
@@ -51,8 +52,16 @@
   let wrong = [answer, answer, answer, answer, answer, answer, answer];
 </script>
 
-<Header />
-<main class="container grix center">
-  <Grid {cells} />
-  <Answers {answer} {wrong} />
+<main>
+  <Header />
+  <Slider>
+    <Grid {cells} />
+    <Answers {answer} {wrong} />
+  </Slider>
 </main>
+
+<style>
+  main {
+    height: 100vh;
+  }
+</style>
