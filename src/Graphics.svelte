@@ -19,7 +19,7 @@
       height="100%"
       fill="none"
       stroke={contrast}
-      stroke-width="3%"
+      stroke-width="4%"
     />
     <line
       x1="33.333%"

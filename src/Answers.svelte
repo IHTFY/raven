@@ -40,7 +40,7 @@
 
 Which best follows the pattern?
 
-<div class="answers">
+<div class="answers py-1">
   {#each choices as choice}
     <Cell config={choice.config} btn />
   {/each}

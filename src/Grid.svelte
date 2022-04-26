@@ -4,7 +4,7 @@
   export let cells;
 </script>
 
-<div class="grid">
+<div class="grid py-5">
   {#each cells as row}
     {#each row as cell}
       <Cell config={cell.config} />
