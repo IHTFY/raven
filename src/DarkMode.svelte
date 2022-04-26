@@ -10,16 +10,14 @@
     document.documentElement.classList.remove("neu-light", "neu-dark");
     document.documentElement.classList.add(current);
   });
-</script>
 
-<button
-  class="btn rounded-1 neu-concave neu-small"
-  data-neu-click="neu-pressed"
-  on:click={() => {
+  const toggleDarkMode = () => {
     theme.update((current) =>
       current === "neu-light" ? "neu-dark" : "neu-light"
     );
-  }}
+  };
+</script>
+
+<!-- svelte-ignore a11y-missing-attribute -->
+<a class="navbar-link neu-flat rounded-1" on:click={toggleDarkMode}>Dark Mode</a
 >
-  DARK MODE
-</button>

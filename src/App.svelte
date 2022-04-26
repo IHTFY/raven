@@ -1,7 +1,7 @@
 <script>
+  import Header from "./Header.svelte";
   import Grid from "./Grid.svelte";
   import Answers from "./Answers.svelte";
-  import DarkMode from "./DarkMode.svelte";
 
   let cells = [
     [
@@ -51,17 +51,8 @@
   let wrong = [answer, answer, answer, answer, answer, answer, answer];
 </script>
 
-<main>
-  <DarkMode />
+<Header />
+<main class="container grix center">
   <Grid {cells} />
   <Answers {answer} {wrong} />
 </main>
-
-<style>
-  main {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-</style>
