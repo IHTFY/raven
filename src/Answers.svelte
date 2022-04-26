@@ -48,10 +48,10 @@ Which best follows the pattern?
 
 <style>
   .answers {
-    aspect-ratio: 2;
-    max-height: 33.333vh;
+    aspect-ratio: 1.5;
+    max-height: 30vh;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(2, 1fr);
     grid-gap: 1em;
   }

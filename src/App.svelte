@@ -49,7 +49,7 @@
   let answer = cells[cells.length - 1].pop();
 
   // TODO generate plausible wrong answers
-  let wrong = [answer, answer, answer, answer, answer, answer, answer];
+  let wrong = [answer, answer, answer, answer, answer];
 </script>
 
 <main>
