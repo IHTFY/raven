@@ -1,37 +1,49 @@
 <script>
-  export let currentPage = 1;
-  export let lastPage = 30;
+  import { currentQuestion } from "./stores.js";
 
-  const limit = (val) => Math.max(1, Math.min(val, lastPage));
+  export let totalQuestions = 30;
 
-  const gotoFirst = () => (currentPage = 1);
-  const gotoLast = () => (currentPage = lastPage);
+  const limit = (val) => Math.max(1, Math.min(val, totalQuestions));
 
-  const gotoNext = () => (currentPage = limit(currentPage + 1));
-  const gotoPrev = () => (currentPage = limit(currentPage - 1));
+  const gotoFirst = () => currentQuestion.set(1);
+  const gotoLast = () => currentQuestion.set(totalQuestions);
 
-  const gotoPage = (page) => (currentPage = limit(page));
+  const gotoNext = () => currentQuestion.update((n) => limit(n + 1));
+  const gotoPrev = () => currentQuestion.update((n) => limit(n - 1));
+
+  const gotoPage = (page) => currentQuestion.set(limit(page));
 </script>
 
 <ul class="pagination">
-  <li class="neu-flat {currentPage < 2 ? 'disabled pressed' : ''}">
+  <li
+    class="neu-flat"
+    class:disabled={$currentQuestion <= 1}
+    class:pressed={$currentQuestion <= 1}
+  >
     <button class="btn neu-flat rounded-1" on:click={gotoFirst}>⟪</button>
   </li>
 
-  {#each [currentPage - 1, currentPage, currentPage + 1] as i}
-    {#if limit(i) === i}
-      <li class="neu-flat">
-        <button
-          class="btn neu-flat rounded-1 {currentPage === i
-            ? 'neu-pressed'
-            : ''}"
-          on:click={() => gotoPage(i)}>{i}</button
-        >
-      </li>
-    {/if}
+  {#each [$currentQuestion - 1, $currentQuestion, $currentQuestion + 1] as i}
+    <li class="neu-flat" class:hidden={limit(i) !== i}>
+      <button
+        class="btn neu-flat rounded-1"
+        class:neu-pressed={$currentQuestion === i}
+        on:click={() => gotoPage(i)}>{i}</button
+      >
+    </li>
   {/each}
 
-  <li class="neu-flat {currentPage > lastPage - 1 ? 'disabled pressed' : ''}">
+  <li
+    class="neu-flat"
+    class:disabled={$currentQuestion >= totalQuestions}
+    class:pressed={$currentQuestion >= totalQuestions}
+  >
     <button class="btn neu-flat rounded-1" on:click={gotoLast}>⟫</button>
   </li>
 </ul>
+
+<style>
+  .hidden {
+    visibility: hidden;
+  }
+</style>

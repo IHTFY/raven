@@ -59,7 +59,7 @@
   <div class="grix center">
     <Grid {cells} />
     <Answers {answer} {wrong} />
-    <Pagination currentPage={1} />
+    <Pagination totalQuestions={35} />
   </div>
   <!-- </Slider> -->
 </main>
