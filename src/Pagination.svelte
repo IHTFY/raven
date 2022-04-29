@@ -43,6 +43,10 @@
 </ul>
 
 <style>
+  .pagination {
+    user-select: none;
+  }
+
   .hidden {
     visibility: hidden;
   }
