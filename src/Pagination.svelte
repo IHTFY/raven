@@ -14,22 +14,24 @@
 </script>
 
 <ul class="pagination">
-  <li class="neu-flat {currentPage < 2 ? 'disabled' : ''}">
-    <!-- svelte-ignore a11y-missing-attribute -->
-    <a on:click={gotoFirst}>⟪</a>
+  <li class="neu-flat {currentPage < 2 ? 'disabled pressed' : ''}">
+    <button class="btn neu-flat rounded-1" on:click={gotoFirst}>⟪</button>
   </li>
 
   {#each [currentPage - 1, currentPage, currentPage + 1] as i}
     {#if limit(i) === i}
-      <li class="neu-flat {currentPage === i ? 'active' : ''}">
-        <!-- svelte-ignore a11y-missing-attribute -->
-        <a on:click={() => gotoPage(i)}>{i}</a>
+      <li class="neu-flat">
+        <button
+          class="btn neu-flat rounded-1 {currentPage === i
+            ? 'neu-pressed'
+            : ''}"
+          on:click={() => gotoPage(i)}>{i}</button
+        >
       </li>
     {/if}
   {/each}
 
-  <li class="neu-flat {currentPage > lastPage - 1 ? 'disabled' : ''}">
-    <!-- svelte-ignore a11y-missing-attribute -->
-    <a on:click={gotoLast}>⟫</a>
+  <li class="neu-flat {currentPage > lastPage - 1 ? 'disabled pressed' : ''}">
+    <button class="btn neu-flat rounded-1" on:click={gotoLast}>⟫</button>
   </li>
 </ul>
