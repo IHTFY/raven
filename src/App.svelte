@@ -3,7 +3,6 @@
   import Grid from "./Grid.svelte";
   import Answers from "./Answers.svelte";
   import Pagination from "./Pagination.svelte";
-  import Slider from "./Slider.svelte";
 
   let cells = [
     [
@@ -55,13 +54,11 @@
 
 <main>
   <Header />
-  <!-- <Slider> -->
   <div class="grix center">
     <Grid {cells} />
     <Answers {answer} {wrong} />
     <Pagination totalQuestions={35} />
   </div>
-  <!-- </Slider> -->
 </main>
 
 <style>
