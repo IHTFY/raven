@@ -47,6 +47,10 @@
     user-select: none;
   }
 
+  button.btn {
+    min-width: 3.5em;
+  }
+
   .hidden {
     visibility: hidden;
   }
