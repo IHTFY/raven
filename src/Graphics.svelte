@@ -4,10 +4,9 @@
   // update color based on theme
   let same;
   let contrast;
-  theme.subscribe((current) => {
-    [same, contrast] =
-      current === "neu-light" ? ["#e5e5e5", "#222"] : ["#222", "#e5e5e5"];
-  });
+
+  $: [same, contrast] =
+    $theme === "neu-light" ? ["#e5e5e5", "#222"] : ["#222", "#e5e5e5"];
 
   export let config;
 </script>
