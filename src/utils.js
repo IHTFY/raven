@@ -11,6 +11,15 @@ export const transpose = grid => {
   }
 }
 
+/**
+ * The range of % is (-n, n). positiveMode restricts the range to [0, n).
+ * 
+ * @param {number} x the number
+ * @param {number} n the modulus
+ * @returns {number} x mod n | x ϵ [0,n)
+ */
+const positiveMod = (x, n) => ((x % n) + n) % n;
+
 // TODO TEST
 /**
  * Rotate a grid clockwise in place.
@@ -24,22 +33,13 @@ export const rotate = (grid, degrees = 90) => {
     console.error("rotate: degrees must be divisible by 90");
     return grid;
   }
-  degrees %= 360;
+  degrees = positiveMod(degrees, 360)
   while (degrees < 0) {
     transpose(grid);
     grid.forEach(row => row.reverse());
     degrees -= 90;
   }
 }
-
-/**
- * The range of % is (-n, n). positiveMode restricts the range to [0, n).
- * 
- * @param {number} x the number
- * @param {number} n the modulus
- * @returns {number} x mod n | x ϵ [0,n)
- */
-const positiveMod = (x, n) => ((x % n) + n) % n;
 
 // TODO might need to shallow copy using spread 
 export const getRow = (grid, rowIndex) => grid[rowIndex];
