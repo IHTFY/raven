@@ -38,7 +38,7 @@
   });
 </script>
 
-Which best follows the pattern?
+<span>Which best follows the pattern?</span>
 
 <div class="answers py-1">
   {#each choices as choice}

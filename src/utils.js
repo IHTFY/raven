@@ -1,5 +1,6 @@
 /**
  * Transpose a grid in place.
+ * Axis of reflection is top left to bottom right ([0][0],[2][2])
  * 
  * @param {number[][]} grid a 2d matrix
  */
@@ -29,16 +30,17 @@ const positiveMod = (x, n) => ((x % n) + n) % n;
  * @returns {number[][]} the rotated matrix
  */
 export const rotate = (grid, degrees = 90) => {
-  if (!(grid % 90)) {
+  if (positiveMod(degrees, 90) !== 0) {
     console.error("rotate: degrees must be divisible by 90");
     return grid;
   }
   degrees = positiveMod(degrees, 360)
-  while (degrees < 0) {
+  while (degrees > 0) {
     transpose(grid);
     grid.forEach(row => row.reverse());
     degrees -= 90;
   }
+  return grid; // the original is modified, this is just a reference to it
 }
 
 // TODO might need to shallow copy using spread 
