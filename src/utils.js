@@ -1,7 +1,7 @@
 /**
  * Transpose a grid in place.
  * 
- * @param {a 2d matrix} grid 
+ * @param {number[][]} grid a 2d matrix
  */
 export const transpose = grid => {
   for (let i = 0; i < grid.length; i++) {
@@ -11,13 +11,14 @@ export const transpose = grid => {
   }
 }
 
+// TODO TEST
 /**
  * Rotate a grid clockwise in place.
- *
- * @param {a 2d matrix} grid
- * @returns {a 2d matrix}
+ * 
+ * @param {number[][]} grid a 2d matrix
+ * @param {number} degrees the number of degrees to rotate clockwise (multiple of 90)
+ * @returns {number[][]} the rotated matrix
  */
-// TODO TEST
 export const rotate = (grid, degrees = 90) => {
   if (!(grid % 90)) {
     console.error("rotate: degrees must be divisible by 90");
@@ -34,9 +35,9 @@ export const rotate = (grid, degrees = 90) => {
 /**
  * The range of % is (-n, n). positiveMode restricts the range to [0, n).
  * 
- * @param {a value} x 
- * @param {the modulus} n 
- * @returns x mod n | x ϵ [0,n)
+ * @param {number} x the number
+ * @param {number} n the modulus
+ * @returns {number} x mod n | x ϵ [0,n)
  */
 const positiveMod = (x, n) => ((x % n) + n) % n;
 
@@ -51,9 +52,9 @@ export const getColumn = (grid, columnIndex) => grid.map(row => row[columnIndex]
 /**
  * Modifies a row in place and returns the modified row.
  * 
- * @param {a 2D array of cells} grid 
- * @param {the row to which a rule will be applied} rowIndex 
- * @param {a function that will be mapped to a row} rule 
+ * @param {number[][]} grid a 2D array of cells
+ * @param {0 | 1 | 2} rowIndex the row to which a rule will be applied 
+ * @param {function} rule a function that will be mapped to a row
  * @returns the modified row, but the original grid is also modified in place
  */
 export const applyToRow = (grid, rowIndex, rule) => {
@@ -66,9 +67,9 @@ export const applyToRow = (grid, rowIndex, rule) => {
 /**
  * Modifies a column in place and returns the modified column.
  * 
- * @param {grid of cells} grid
- * @param {the column to which a rule will be applied} columnIndex
- * @param {a function that will be mapped to a column} rule
+ * @param {number[][]} grid grid of cells
+ * @param {0 | 1 | 2} columnIndex the column to which a rule will be applied
+ * @param {function} rule a function that will be mapped to a column
  * @returns the modified column, but the original grid is also modified in place
  */
 
@@ -82,15 +83,15 @@ export const applyToColumn = (grid, columnIndex, rule) => {
 /**
  * Pick a diagonal from a grid.
  * 
- * @param {3x3 grid} grid
- * @param {column index of first element} diagonalIndex
- * @param {1: right, -1: left} direction
- * @returns {array of elements in the diagonal, starting at the given index moving down and in the given direction}
- */
-
-/**
+ * @param {number[][]} grid 3x3 grid
+ * @param {0 | 1 | 2} diagonalIndexcolumn index of first element
+ * @param {-1 | 1} direction 1: right, -1: left
+ * @returns {number[][]} array of elements in the diagonal, starting at the given index moving down and in the given direction
+ *
  * 1 2 3  -1 -2 -3
+ * 
  * 3 1 2  -2 -3 -1
+ * 
  * 2 3 1  -3 -1 -2
  */
 
