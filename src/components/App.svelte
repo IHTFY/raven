@@ -25,6 +25,7 @@
   // TODO the grid should be mapped through an array of functions,
   // and the final output should be the grid of cells with row, col, and config
   // the config shouldn't have logic, just the static description of the graphic
+  // I guess I could use [fn1,fn2,fn3].reduce((g,f)=>f(g),grid)
 
   // apply rules to each cell
   for (let row = 0; row < cells.length; row++) {

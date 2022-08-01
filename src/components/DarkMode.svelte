@@ -1,5 +1,5 @@
 <script>
-  import { theme } from "./stores.js";
+  import { theme } from "../stores.js";
 
   // get theme from localStorage or use light by default
   theme.set(localStorage.getItem("theme") ?? "neu-light");
