@@ -1,5 +1,5 @@
 <script>
-  import * as Rules from "./rules.js";
+  import * as Rules from "../rules.js";
   import Graphics from "./Graphics.svelte";
   export let config;
   export let btn = false;

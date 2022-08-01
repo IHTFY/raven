@@ -1,5 +1,5 @@
 <script>
-  import { currentQuestion } from "./stores.js";
+  import { currentQuestion } from "../stores.js";
 
   export let totalQuestions = 30;
 
