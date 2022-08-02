@@ -1,5 +1,4 @@
-import * as Utils from './utils.js';
-
+// import * as Utils from './utils.js';
 
 /**
  * Rules can be applied to a grid of cells. 
