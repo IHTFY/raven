@@ -1,6 +1,6 @@
 <script>
-  import Cell from "./Cell.svelte";
   import { onMount } from "svelte";
+  import Cell from "./Cell.svelte";
 
   export let answer;
   export let wrong;

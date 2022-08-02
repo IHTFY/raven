@@ -17,7 +17,7 @@ importers:
       rollup-plugin-svelte: ^7.0.0
       rollup-plugin-terser: ^7.0.0
       sirv-cli: ^2.0.0
-      svelte: ^3.0.0
+      svelte: ^3.47.0
     dependencies:
       '@materializecss/materialize': 1.1.0
       axentix: 2.0.1
