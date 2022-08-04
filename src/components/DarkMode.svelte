@@ -5,11 +5,11 @@
   theme.set(localStorage.getItem("theme") ?? "neu-light");
 
   // update localStorage and html class whenever the theme writable changes
-  theme.subscribe((current) => {
-    localStorage.setItem("theme", current);
+  $: {
+    localStorage.setItem("theme", $theme);
     document.documentElement.classList.remove("neu-light", "neu-dark");
-    document.documentElement.classList.add(current);
-  });
+    document.documentElement.classList.add($theme);
+  }
 
   const toggleDarkMode = () => {
     theme.update((current) =>
