@@ -1,4 +1,5 @@
 <script>
+  import Icon from "@iconify/svelte";
   import { currentQuestion } from "../stores.js";
 
   export let totalQuestions = 30;
@@ -20,7 +21,9 @@
     class:disabled={$currentQuestion <= 1}
     class:pressed={$currentQuestion <= 1}
   >
-    <button class="btn neu-flat rounded-1" on:click={gotoFirst}>⟪</button>
+    <button class="btn neu-flat rounded-1" on:click={gotoFirst}
+      ><Icon icon="mdi:chevron-double-left" inline={true} /></button
+    >
   </li>
 
   {#each [$currentQuestion - 1, $currentQuestion, $currentQuestion + 1] as i}
@@ -38,7 +41,9 @@
     class:disabled={$currentQuestion >= totalQuestions}
     class:pressed={$currentQuestion >= totalQuestions}
   >
-    <button class="btn neu-flat rounded-1" on:click={gotoLast}>⟫</button>
+    <button class="btn neu-flat rounded-1" on:click={gotoLast}
+      ><Icon icon="mdi:chevron-double-right" inline={true} /></button
+    >
   </li>
 </ul>
 
