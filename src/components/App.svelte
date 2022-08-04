@@ -1,8 +1,9 @@
 <script>
-  import Header from "./Header.svelte";
-  import Grid from "./Grid.svelte";
   import Answers from "./Answers.svelte";
+  import Grid from "./Grid.svelte";
+  import Header from "./Header.svelte";
   import Pagination from "./Pagination.svelte";
+  import Question from "./Question.svelte";
 
   let cells = [
     [
@@ -50,14 +51,19 @@
   let answer = cells[cells.length - 1].pop();
 
   // TODO generate plausible wrong answers
-  let wrong = [answer, answer, answer, answer, answer];
+  // e.g. modify the order applied functions, or add a random perturbation along the reduction,
+  // and check that we don't have any duplicates - perhaps force property order and stringify
+  // let wrong = [answer, answer, answer, answer, answer];
+  let wrong = cells.flat().slice(0, 5);
 </script>
 
 <main>
   <Header />
   <div class="grix center">
-    <Grid {cells} />
-    <Answers {answer} {wrong} />
+    <Question>
+      <Grid slot="grid" {cells} />
+      <Answers slot="answers" {answer} {wrong} />
+    </Question>
     <Pagination totalQuestions={35} />
   </div>
 </main>

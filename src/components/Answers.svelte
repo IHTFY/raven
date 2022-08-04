@@ -38,8 +38,9 @@
   });
 </script>
 
-<span>Which best follows the pattern?</span>
-
+<div class="question-text">
+  <p>Which best follows the pattern?</p>
+</div>
 <div class="answers py-1">
   {#each choices as choice}
     <Cell config={choice.config} btn />
@@ -47,6 +48,12 @@
 </div>
 
 <style>
+  .question-text {
+    text-align: center;
+    font-weight: 500;
+    font-size: large;
+  }
+
   .answers {
     aspect-ratio: 1.5;
     max-height: 30vh;
