@@ -29,7 +29,9 @@
   {#each [$currentQuestion - 1, $currentQuestion, $currentQuestion + 1] as i}
     <li class="neu-flat" class:hidden={limit(i) !== i}>
       <button
-        class="btn neu-flat rounded-1"
+        class="btn neu-flat rounded-1 font-w{$currentQuestion === i
+          ? '600'
+          : '400'}"
         class:neu-pressed={$currentQuestion === i}
         on:click={() => gotoPage(i)}>{i}</button
       >

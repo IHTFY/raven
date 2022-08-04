@@ -1,4 +1,7 @@
 <script>
+  // icon search
+  // https://icon-sets.iconify.design/
+
   import Answers from "./Answers.svelte";
   import Grid from "./Grid.svelte";
   import Header from "./Header.svelte";
