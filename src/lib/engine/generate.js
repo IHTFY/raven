@@ -13,7 +13,7 @@ import { RULES } from './rules.js';
 import { determined } from './solver.js';
 
 /** Bump whenever a change makes the same seed build different puzzles. */
-export const GENERATOR = 2;
+export const GENERATOR = 3;
 export const TEST_LENGTH = 35;
 const TOLERANCE = 1.25;
 /** Each extra changing attribute is one more thing to track. */
@@ -37,9 +37,9 @@ function plansOf(family) {
 
 const PLANS = FAMILIES.flatMap(plansOf);
 
-/** Plans where every changing attribute only repeats along rows or columns. A test uses them only for its easiest target. */
-const repeatsOnly = (plan) => plan.rules.every((rule) => ['constant', 'rows', 'cols'].includes(rule.id));
-const TEST_PLANS = PLANS.filter((plan) => !repeatsOnly(plan));
+/** Plans where every picture in a row (or every picture in a column) is the same. A test uses them only for its easiest target. */
+const oneWay = (plan) => ['rows', 'cols'].some((dir) => plan.rules.every((rule) => rule.id === 'constant' || rule.id === dir));
+const TEST_PLANS = PLANS.filter((plan) => !oneWay(plan));
 
 /** Pick a group other than the last one, then a family in it, then a plan near the target. */
 function choosePlan(plans, goal, rng, avoid) {
@@ -154,7 +154,7 @@ function arrange(puzzles) {
   return out;
 }
 
-/** A full test, easiest first, with at most one puzzle that just repeats along rows or columns. */
+/** A full test, easiest first, with at most one puzzle whose rows (or columns) are each one picture repeated. */
 export function generateTest(seed) {
   let previous;
   const puzzles = range(0, TEST_LENGTH - 1).map((i) => {
