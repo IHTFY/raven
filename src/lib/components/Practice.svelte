@@ -1,5 +1,6 @@
 <script>
   import { go } from '../router.svelte.js';
+  import { pressesControl } from '../keys.js';
   import { choosePractice, levelOf, nextPractice, practicePuzzle, startPractice, store } from '../state.svelte.js';
   import Board from './Board.svelte';
   import { optionForKey } from './Choices.svelte';
@@ -28,7 +29,7 @@
   }
 
   function keydown(e) {
-    if (why || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (why || e.metaKey || e.ctrlKey || e.altKey || pressesControl(e)) return;
     const k = optionForKey(e.key);
     if (k >= 0) choose(k);
     else if ((e.key === 'Enter' || e.key === 'ArrowRight') && revealed) next();

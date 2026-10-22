@@ -1,7 +1,8 @@
 <script>
   import { go } from '../router.svelte.js';
   import { clock, plural } from '../format.js';
-  import { finishTest, puzzlesFor, store } from '../state.svelte.js';
+  import { pressesControl } from '../keys.js';
+  import { answerTest, finishTest, puzzlesFor, store } from '../state.svelte.js';
   import Board from './Board.svelte';
   import { optionForKey } from './Choices.svelte';
   import Icon from './Icon.svelte';
@@ -27,11 +28,11 @@
   const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
 
   // After a pick, move on once the choice has had a moment to show,
-  // unless you've already moved yourself.
+  // unless you've already moved yourself. Past the deadline, the timer ends the test.
   let advance;
   function choose(k) {
+    if (!answerTest(k)) return;
     const at = test.current;
-    test.answers[at] = k;
     clearTimeout(advance);
     advance = setTimeout(() => {
       if (test.current !== at) return;
@@ -47,7 +48,7 @@
   }
 
   function keydown(e) {
-    if (overview || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (overview || e.metaKey || e.ctrlKey || e.altKey || pressesControl(e)) return;
     const k = optionForKey(e.key);
     if (k >= 0) choose(k);
     else if (e.key === 'ArrowLeft') move(test.current - 1);

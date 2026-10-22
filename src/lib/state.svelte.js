@@ -15,12 +15,43 @@ export const TEST_MINUTES = 25;
 
 const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null });
 
+const isSeed = (seed) => typeof seed === 'string' && seed !== '';
+const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < 6);
+const areNumbers = (...xs) => xs.every(Number.isFinite);
+
+const isTest = (t) =>
+  isSeed(t?.seed) &&
+  Array.isArray(t.answers) &&
+  t.answers.length === TEST_LENGTH &&
+  t.answers.every(isChoice) &&
+  Number.isInteger(t.current) &&
+  t.current >= 0 &&
+  t.current < TEST_LENGTH &&
+  areNumbers(t.started, t.deadline) &&
+  (t.finished === null || areNumbers(t.finished));
+
+const isResult = (h) => isSeed(h?.seed) && areNumbers(h.score, h.total, h.seconds, h.date);
+
+const isPractice = (p) =>
+  isSeed(p?.seed) &&
+  [p.count, p.right, p.done].every(Number.isInteger) &&
+  areNumbers(p.target) &&
+  isChoice(p.choice) &&
+  (p.group === null || typeof p.group === 'string');
+
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY)) ?? {};
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    const state = blank();
+    // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
+    if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
+    if (Array.isArray(saved?.history) && saved.history.every(isResult)) state.history = saved.history;
     // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
-    if (saved.generator !== GENERATOR) Object.assign(saved, { generator: GENERATOR, test: null, practice: null });
-    return { ...blank(), ...saved };
+    if (saved?.generator === GENERATOR) {
+      if (isTest(saved.test)) state.test = saved.test;
+      if (isPractice(saved.practice)) state.practice = saved.practice;
+    }
+    return state;
   } catch {
     // Unreadable or blocked storage: start over rather than fail to open.
     return blank();
@@ -86,6 +117,14 @@ export function startTest(seed = upcoming) {
 export const scoreOf = (test) => puzzlesFor(test.seed).filter((p, i) => test.answers[i] === p.answer).length;
 
 export const isRunning = (test) => test && !test.finished;
+
+/** Answer the current puzzle, unless time is up. Returns whether the answer counts. */
+export function answerTest(k) {
+  const test = store.test;
+  if (!isRunning(test) || Date.now() >= test.deadline) return false;
+  test.answers[test.current] = k;
+  return true;
+}
 
 export const elapsed = (test) => Math.round((test.finished - test.started) / 1000);
 
