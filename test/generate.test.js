@@ -1,13 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { figureKey } from '../src/lib/engine/draw.js';
 import { FAMILIES } from '../src/lib/engine/families/index.js';
-import { EASIEST, HARDEST, TEST_LENGTH, generatePuzzle, generateTest } from '../src/lib/engine/generate.js';
+import { EASIEST, HARDEST, TEST_LENGTH, generatePuzzle, generateTest, planScore } from '../src/lib/engine/generate.js';
 import { range, values } from '../src/lib/engine/kinds.js';
 import { createRng } from '../src/lib/engine/rng.js';
 import { RULES } from '../src/lib/engine/rules.js';
 import { candidates, determined } from '../src/lib/engine/solver.js';
 
 const FAMILY = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
+const RULE = Object.fromEntries(RULES.map((r) => [r.id, r]));
+
+/** Ranks of a list of numbers, ties sharing their mean rank. */
+const ranks = (v) => v.map((x) => v.filter((y) => y < x).length + (v.filter((y) => y === x).length - 1) / 2);
+
+/** Spearman rank correlation: how closely two lists agree on order, from −1 to 1. */
+function rankCorrelation(a, b) {
+  const centered = (v) => {
+    const r = ranks(v);
+    const mean = r.reduce((s, x) => s + x, 0) / r.length;
+    return r.map((x) => x - mean);
+  };
+  const [x, y] = [centered(a), centered(b)];
+  const dot = (u, v) => u.reduce((s, ui, i) => s + ui * v[i], 0);
+  return dot(x, y) / Math.sqrt(dot(x, x) * dot(y, y));
+}
 
 /** Puzzles across the whole difficulty range from many seeds. */
 const SAMPLE = range(0, 399).map((i) => generatePuzzle(`sample/${i}`, EASIEST + ((HARDEST - EASIEST) * (i % 20)) / 19));
@@ -147,6 +163,43 @@ describe('tests', () => {
       p.rules.every((r) => r.rule === 'rows' || r.rule === 'cols') && new Set(p.rules.map((r) => r.rule)).size === 2;
     const tests = range(0, 29).map((seed) => generateTest(`crossed/${seed}`));
     expect(tests.filter((test) => test.some(crossed)).length).toBeGreaterThan(15);
+  });
+
+  it('use set rules in more than half the puzzles of the last third', () => {
+    // Overlay is left out: it builds each picture from a row group and a column group, an early-test idea.
+    const SET_RULES = new Set(['or', 'xor', 'and', 'minus', 'rminus', 'partition', 'complement', 'ownLines']);
+    const last = range(0, 29).flatMap((i) => generateTest(`mix/${i}`).slice(Math.ceil((2 * TEST_LENGTH) / 3)));
+    const share = last.filter((p) => p.rules.some((r) => SET_RULES.has(r.rule))).length / last.length;
+    expect(share).toBeGreaterThan(0.5);
+  });
+
+  it('rank styles of puzzle in the order the Mensa Norway test places them', () => {
+    // [question number in that test, our family, rule per changing attribute] for items our engine can build.
+    const REFERENCE = [
+      [2, 'nested', { outer: 'rows', inner: 'cols' }],
+      [3, 'nested', { outer: 'rows', inner: 'latinDown' }],
+      [4, 'arrow', { dir: 'rows', tail: 'cols' }],
+      [6, 'tiles', { tiles: 'overlay' }],
+      [8, 'shapes', { shape: 'latinDown', fill: 'latinUp' }],
+      [9, 'marks', { boxes: 'cols', dots: 'rows' }],
+      [10, 'kite', { dir: 'progressionWide', half: 'rows' }],
+      [11, 'parts', { parts: 'rminus' }],
+      [13, 'shapes', { shape: 'latinDown', fill: 'latinDown' }],
+      [15, 'chevron', { dir: 'progressionWide', dots: 'latinDown' }],
+      [16, 'umbrella', { dir: 'progressionWide', fill: 'latinDown' }],
+      [19, 'parts', { parts: 'partition' }],
+      [20, 'lines', { segments: 'xor' }],
+      [24, 'spokes', { spokes: 'xor' }],
+      [27, 'vee', { dir: 'progressionWide', angle: 'latinDown' }],
+      [31, 'tiles', { tiles: 'xor' }],
+    ];
+    const scores = REFERENCE.map(([, id, rules]) => {
+      const family = FAMILY[id];
+      expect(Object.keys(rules).every((name) => family.attrs.some((attr) => attr.name === name))).toBe(true);
+      expect(Object.values(rules).every((rule) => rule in RULE)).toBe(true);
+      return planScore(family, family.attrs.map((attr) => RULE[rules[attr.name] ?? 'constant']));
+    });
+    expect(rankCorrelation(REFERENCE.map(([q]) => q), scores)).toBeGreaterThan(0.85);
   });
 
   it('generate quickly', () => {

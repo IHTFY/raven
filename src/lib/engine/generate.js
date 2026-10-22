@@ -13,26 +13,26 @@ import { RULES } from './rules.js';
 import { determined } from './solver.js';
 
 /** Bump whenever a change makes the same seed build different puzzles. */
-export const GENERATOR = 3;
+export const GENERATOR = 4;
 export const TEST_LENGTH = 35;
 const TOLERANCE = 1.25;
 /** Each extra changing attribute is one more thing to track. */
-const PER_ATTRIBUTE = 0.75;
+const PER_ATTRIBUTE = 0.25;
 
 export const EASIEST = 1;
 export const HARDEST = 8.5;
 const target = (i) => EASIEST + ((HARDEST - EASIEST) * i) / (TEST_LENGTH - 1);
 
+export function planScore(family, rules) {
+  const varying = rules.filter((rule) => rule.id !== 'constant');
+  return family.base + varying.reduce((s, rule) => s + rule.score, 0) + PER_ATTRIBUTE * (varying.length - 1);
+}
+
 /** Every way to give each attribute a rule, leaving at least one attribute changing. */
 function plansOf(family) {
   const choices = family.attrs.map((attr) => RULES.filter((rule) => rule.applies(attr)));
   const combos = choices.reduce((acc, rules) => acc.flatMap((plan) => rules.map((rule) => [...plan, rule])), [[]]);
-  return combos.flatMap((rules) => {
-    const varying = rules.filter((rule) => rule.id !== 'constant');
-    if (!varying.length) return [];
-    const score = family.base + varying.reduce((s, rule) => s + rule.score, 0) + PER_ATTRIBUTE * (varying.length - 1);
-    return [{ family, rules, score }];
-  });
+  return combos.flatMap((rules) => (rules.some((rule) => rule.id !== 'constant') ? [{ family, rules, score: planScore(family, rules) }] : []));
 }
 
 const PLANS = FAMILIES.flatMap(plansOf);
