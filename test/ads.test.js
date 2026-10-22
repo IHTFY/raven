@@ -23,6 +23,8 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   delete window.ihtfyAds;
+  localStorage.clear();
+  document.cookie = 'ihtfy-ad-free=; Max-Age=0';
 });
 
 describe('showAd', () => {
@@ -56,5 +58,30 @@ describe('showAd', () => {
     expect(window.ihtfyAds.show).not.toHaveBeenCalled();
     showAd(document.createElement('div'), 'b');
     expect(added).toHaveLength(2);
+  });
+});
+
+describe('loadForBuyer', () => {
+  it('loads nothing for a visitor without an ad-free token', async () => {
+    const { loadForBuyer } = await loadAds();
+    loadForBuyer();
+    expect(added).toHaveLength(0);
+  });
+
+  it('loads the loader at startup when localStorage holds a token', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    const { loadForBuyer, showAd } = await loadAds();
+    loadForBuyer();
+    expect(added).toHaveLength(1);
+    expect(added[0].src).toBe('https://ihtfy.com/ads/v1.js');
+    showAd(document.createElement('div'), 'a');
+    expect(added).toHaveLength(1);
+  });
+
+  it('loads the loader at startup when only the cookie holds a token', async () => {
+    document.cookie = 'ihtfy-ad-free=token';
+    const { loadForBuyer } = await loadAds();
+    loadForBuyer();
+    expect(added).toHaveLength(1);
   });
 });
