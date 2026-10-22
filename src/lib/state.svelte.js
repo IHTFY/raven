@@ -16,7 +16,8 @@ export const TEST_MINUTES = 25;
 const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null });
 
 const isSeed = (seed) => typeof seed === 'string' && seed !== '';
-const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < 6);
+const OPTIONS = 6;
+const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < OPTIONS);
 const areNumbers = (...xs) => xs.every(Number.isFinite);
 
 const isTest = (t) =>
