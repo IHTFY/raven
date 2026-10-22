@@ -37,7 +37,7 @@ function plansOf(family) {
 
 const PLANS = FAMILIES.flatMap(plansOf);
 
-/** Plans where every changing attribute only repeats along rows or columns. A test opens with at most one. */
+/** Plans where every changing attribute only repeats along rows or columns. A test uses them only for its easiest target. */
 const repeatsOnly = (plan) => plan.rules.every((rule) => ['constant', 'rows', 'cols'].includes(rule.id));
 const TEST_PLANS = PLANS.filter((plan) => !repeatsOnly(plan));
 
@@ -132,6 +132,8 @@ export const generatePuzzle = (seed, goal, avoid) => puzzleFrom(PLANS, seed, goa
 /**
  * Order by score, then pull forward the next puzzle from a different group
  * wherever two neighbors share one, so the test keeps switching styles.
+ * Same-group puzzles left at the end move back to the latest gap between two
+ * other groups, a little out of score order.
  */
 function arrange(puzzles) {
   const out = [...puzzles].sort((a, b) => a.score - b.score);
@@ -147,12 +149,12 @@ function arrange(puzzles) {
     const k = out.findLastIndex((p, m) => m > 0 && m < i - 1 && p.group !== group && out[m - 1].group !== group);
     if (k < 0) continue;
     out.splice(k, 0, ...out.splice(i, 1));
-    i++;
+    i++; // Check this index again: the run of one group may be longer.
   }
   return out;
 }
 
-/** A full test, easiest first. Only the first question may be one that just repeats along rows or columns. */
+/** A full test, easiest first, with at most one puzzle that just repeats along rows or columns. */
 export function generateTest(seed) {
   let previous;
   const puzzles = range(0, TEST_LENGTH - 1).map((i) => {
