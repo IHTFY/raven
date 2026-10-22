@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Raven · Pattern puzzles</title>
+    <meta name="description" content="Endless pattern puzzles in the style of Raven's Progressive Matrices. Take a timed 35-puzzle test or practice at your own pace." />
+    <meta name="theme-color" content="#252a3a" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <script>
+      // Set the theme before the first paint, so it never flashes: the saved choice, else the system's.
+      let theme;
+      try {
+        theme = JSON.parse(localStorage.getItem('raven')).theme;
+      } catch {
+        // Nothing saved, or storage is blocked.
+      }
+      if (theme !== 'light' && theme !== 'dark') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = theme;
+    </script>
+
+    <!-- Google Auto Ads -->
+    <script
+      async
+      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7816252471679024"
+      crossorigin="anonymous"
+    ></script>
+  </head>
+
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

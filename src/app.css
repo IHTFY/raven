@@ -1,0 +1,196 @@
+/*
+ * Soft-UI (neumorphic) theme. Surfaces share the page color and stand out
+ * through paired light and dark shadows; pressed things sink in.
+ * `data-theme` on the root picks the palette.
+ */
+
+:root {
+  color-scheme: dark;
+  --bg: #252a3a;
+  --hi: #303750;
+  --lo: #1a1e2a;
+  --line: #3a4159;
+  --text: #e8ebf4;
+  --muted: #9aa1b8;
+  --ink: #e8ebf4;
+  --mid: #8890a8;
+  --paper: var(--bg);
+  --accent: #8aa8ff;
+  --good: #4fca8f;
+  --bad: #ff7a7a;
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --lift: 5px 5px 12px var(--lo), -5px -5px 12px var(--hi);
+  --lift-sm: 3px 3px 7px var(--lo), -3px -3px 7px var(--hi);
+  --sink: inset 3px 3px 7px var(--lo), inset -3px -3px 7px var(--hi);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #e4e8f0;
+  --hi: #ffffff;
+  --lo: #c2c8d6;
+  --line: #cdd2de;
+  --text: #1f2433;
+  --muted: #5d6479;
+  --ink: #1f2433;
+  --mid: #8a91a6;
+  --accent: #3c66d8;
+  --good: #17945b;
+  --bad: #d23c3c;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overflow: hidden;
+}
+
+#app {
+  height: 100dvh;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* Surfaces */
+
+.raised {
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: var(--lift);
+}
+
+.sunk {
+  background: var(--bg);
+  border-radius: var(--radius);
+  box-shadow: var(--sink);
+}
+
+/* Buttons sink on touch-down and spring back on release. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  min-height: 48px;
+  padding: 0 1.25em;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  box-shadow: var(--lift-sm);
+  font-weight: 600;
+  transition:
+    box-shadow 140ms var(--ease-out),
+    transform 140ms var(--ease-out),
+    color 140ms;
+}
+
+.btn:active:not(:disabled) {
+  box-shadow: var(--sink);
+  transform: scale(0.98);
+  transition-duration: 0ms;
+}
+
+.btn:disabled {
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.btn.primary {
+  color: var(--accent);
+}
+
+.btn.big {
+  min-height: 60px;
+  font-size: 1.1rem;
+  border-radius: var(--radius);
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  transition:
+    box-shadow 140ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.icon-btn:active {
+  box-shadow: var(--sink);
+  transform: scale(0.94);
+  transition-duration: 0ms;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Figures: color names from the engine map to theme colors. */
+.f-ink { fill: var(--ink); }
+.f-mid { fill: var(--mid); }
+.f-paper { fill: var(--paper); }
+.f-none { fill: none; }
+.s-ink { stroke: var(--ink); }
+.s-none { stroke: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
