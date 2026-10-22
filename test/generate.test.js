@@ -134,12 +134,19 @@ describe('tests', () => {
     }
   });
 
-  it('have at most one puzzle where everything just repeats along rows or columns', () => {
-    const repeatsOnly = (p) => p.rules.every((r) => r.rule === 'rows' || r.rule === 'cols');
+  it('have at most one puzzle where every picture in a row (or column) is the same', () => {
+    const along = (dir) => (p) => p.rules.every((r) => r.rule === dir);
     for (const seed of range(0, 29)) {
-      const simple = generateTest(`simple/${seed}`).filter(repeatsOnly);
+      const simple = generateTest(`simple/${seed}`).filter((p) => along('rows')(p) || along('cols')(p));
       expect(simple.length, `seed simple/${seed}`).toBeLessThanOrEqual(1);
     }
+  });
+
+  it('can set one attribute by row and another by column', () => {
+    const crossed = (p) =>
+      p.rules.every((r) => r.rule === 'rows' || r.rule === 'cols') && new Set(p.rules.map((r) => r.rule)).size === 2;
+    const tests = range(0, 29).map((seed) => generateTest(`crossed/${seed}`));
+    expect(tests.filter((test) => test.some(crossed)).length).toBeGreaterThan(15);
   });
 
   it('generate quickly', () => {
