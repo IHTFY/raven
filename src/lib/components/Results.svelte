@@ -1,4 +1,5 @@
 <script>
+  import { RESULTS_AD_SLOT, showAd } from '../ads.js';
   import { go, shareUrl } from '../router.svelte.js';
   import { duration } from '../format.js';
   import { elapsed, puzzlesFor, scoreOf, startTest, store } from '../state.svelte.js';
@@ -25,6 +26,10 @@
   let reviewing = $state(null);
   let toast = $state(null);
 
+  // One ad per finished test; coming back to these results asks for no new one.
+  let adBox;
+  $effect(() => showAd(adBox, `${test.seed}/${test.finished}`));
+
   async function share() {
     const url = shareUrl(test.seed);
     const text = `I got ${score}/${puzzles.length} on this pattern test. Can you beat it?`;
@@ -40,42 +45,51 @@
   }
 </script>
 
-<main>
-  <header>
-    <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
-    <h1>Results</h1>
-    <button class="icon-btn" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
-  </header>
+<div class="page">
+  <main>
+    <header>
+      <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
+      <h1>Results</h1>
+      <button class="icon-btn" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
+    </header>
 
-  <section class="score">
-    <p class="big tabular"><CountUp value={score} /><span class="muted">/{puzzles.length}</span></p>
-    <p class="muted">{duration(seconds)}{test.finished >= test.deadline ? ' · time ran out' : ''}</p>
-  </section>
+    <section class="score">
+      <p class="big tabular"><CountUp value={score} /><span class="muted">/{puzzles.length}</span></p>
+      <p class="muted">{duration(seconds)}{test.finished >= test.deadline ? ' · time ran out' : ''}</p>
+    </section>
 
-  <section class="parts">
-    {#each parts as part (part.label)}
-      <div class="part raised">
-        <span class="muted">{part.label}</span>
-        <b class="tabular">{part.right}<span class="muted">/{part.total}</span></b>
-      </div>
-    {/each}
-  </section>
+    <section class="parts">
+      {#each parts as part (part.label)}
+        <div class="part raised">
+          <span class="muted">{part.label}</span>
+          <b class="tabular">{part.right}<span class="muted">/{part.total}</span></b>
+        </div>
+      {/each}
+    </section>
 
-  <section class="chips" aria-label="Your answers. Tap one to review it.">
-    {#each puzzles as _, i (i)}
-      {@const o = outcome(i)}
-      <button class="chip {o}" style:--i={i} onclick={() => (reviewing = i)} aria-label="Puzzle {i + 1}: {o}">
-        {#if o === 'blank'}<span class="dash">–</span>{:else}<Icon name={o === 'right' ? 'check' : 'cross'} size={16} />{/if}
-      </button>
-    {/each}
-  </section>
-  <p class="muted small">Tap a puzzle to see the answer and why.</p>
+    <section class="chips" aria-label="Your answers. Tap one to review it.">
+      {#each puzzles as _, i (i)}
+        {@const o = outcome(i)}
+        <button class="chip {o}" style:--i={i} onclick={() => (reviewing = i)} aria-label="Puzzle {i + 1}: {o}">
+          {#if o === 'blank'}<span class="dash">–</span>{:else}<Icon name={o === 'right' ? 'check' : 'cross'} size={16} />{/if}
+        </button>
+      {/each}
+    </section>
+    <p class="muted small">Tap a puzzle to see the answer and why.</p>
 
-  <footer>
-    <button class="btn big primary" onclick={() => startTest()}>New test</button>
-    <button class="btn big" onclick={() => go('practice')}>Practice</button>
-  </footer>
-</main>
+    <footer>
+      <button class="btn big primary" onclick={() => startTest()}>New test</button>
+      <button class="btn big" onclick={() => go('practice')}>Practice</button>
+    </footer>
+  </main>
+
+  <!-- Below the fold, at least 150px from the buttons above; the box keeps its size whether or not an ad fills it. -->
+  <aside class="ad">
+    <p class="muted small">Advertisements</p>
+    <div class="ad-box" bind:this={adBox} data-ad-slot={RESULTS_AD_SLOT || null} data-adtest="on"></div>
+    <a class="muted small" href="https://ihtfy.com/privacy">Privacy</a>
+  </aside>
+</div>
 
 {#if reviewing != null}
   <Sheet title="Puzzle {reviewing + 1}" full onclose={() => (reviewing = null)}>
@@ -86,8 +100,14 @@
 <Toast bind:message={toast} />
 
 <style>
+  /* Sized from the viewport, not the parents: AdSense sets `height: auto` on an ad's ancestors. */
+  .page {
+    height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+
   main {
-    height: 100%;
+    min-height: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -198,6 +218,19 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
+  }
+
+  .ad {
+    display: grid;
+    justify-items: center;
+    gap: 6px;
+    padding: 150px 16px 24px;
+  }
+
+  .ad-box {
+    width: 300px;
+    height: 250px;
+    min-height: 250px;
   }
 
   @keyframes chip-in {
