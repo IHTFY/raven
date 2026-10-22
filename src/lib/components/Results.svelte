@@ -86,7 +86,7 @@
   <!-- Below the fold, at least 150px from the buttons above; the box keeps its size whether or not an ad fills it. -->
   <aside class="ad">
     <p class="muted small">Advertisements</p>
-    <div class="ad-box" bind:this={adBox} data-ad-slot={RESULTS_AD_SLOT || null} data-adtest="on"></div>
+    <div class="ad-box" bind:this={adBox} data-ad-slot={RESULTS_AD_SLOT}></div>
     <a class="muted small" href="https://ihtfy.com/privacy">Privacy</a>
   </aside>
 </div>

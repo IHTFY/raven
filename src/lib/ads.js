@@ -4,9 +4,10 @@
 // arrives then, and AdSense after it at browser idle.
 const LOADER = import.meta.env.VITE_ADS_LOADER || 'https://ihtfy.com/ads/v1.js';
 
-// TODO: the id of the 300×250 display unit for Raven's results, once it's
-// created in AdSense. Without one the loader asks for an ad with no unit id.
-export const RESULTS_AD_SLOT = '';
+// The shared 300×250 display unit for game results ("games-results" in AdSense).
+// The loader asks for test ads on any host but ihtfy.com, so previews and
+// local builds never request live ones.
+export const RESULTS_AD_SLOT = '6470163205';
 
 let loader = null;
 
