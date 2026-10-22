@@ -15,6 +15,7 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 - Git history, all branches: no API keys, tokens, or private keys (searched for Stripe, GitHub, Anthropic, and Google key formats and `PRIVATE KEY`).
 - `pnpm audit`: one high advisory, `braces` ≤ 3.0.3 (GHSA-vfj7-8cjw-p6xm), reached only through `gh-pages` → `globby` → `fast-glob` → `micromatch`. That's the deploy tool matching its own fixed patterns on the maintainer's machine; no path takes outside input, and nothing from it ships in the bundle.
 - GitHub Pages: HTTPS enforced; `http://` redirects with a 301.
+- Custom domain: `ihtfy.com` is verified for GitHub Pages, which covers `iq.ihtfy.com` (Pages API `protected_domain_state: verified`). There is no wildcard DNS record.
 - Saved data: a malformed save no longer breaks the app on load (fixed in #2, with tests).
 
 ## Open items
@@ -22,7 +23,7 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 | Item | Where | Fix before | Status |
 |---|---|---|---|
 | AdSense runs with no privacy policy and no consent message. Google asks sites showing AdSense to publish a privacy policy that discloses third-party ad cookies and how to opt out, and requires a Google-certified consent tool (IAB TCF) before showing personalized ads in the EEA, UK, and Switzerland. | `index.html` | Now (public) | Fixed: AdSense removed (#4) |
-| The custom domain isn't verified for GitHub Pages. If Pages is ever turned off while the `iq` DNS record still points at GitHub, another account could claim the subdomain. Verifying `ihtfy.com` in the GitHub account settings (a DNS TXT record) blocks that. | GitHub profile settings → Pages; Cloudflare DNS for `ihtfy.com` | Now (public) | Waiting on the owner: add the domain on GitHub, then the `_github-pages-challenge-IHTFY` TXT record it shows, and keep that record |
+| The custom domain isn't verified for GitHub Pages. If Pages is ever turned off while the `iq` DNS record still points at GitHub, another account could claim the subdomain. Verifying `ihtfy.com` in the GitHub account settings (a DNS TXT record) blocks that. | GitHub profile settings → Pages; Cloudflare DNS for `ihtfy.com` | Now (public) | Fixed 2026-10-22: `ihtfy.com` verified; keep the `_github-pages-challenge-IHTFY` TXT record |
 | No Content Security Policy. GitHub Pages can't set headers, so it would be a `<meta>` tag, with a hash for the inline theme script in `index.html`. Low value while the app loads no third-party code and has no accounts or secrets to steal. | `index.html` | Before any account, payment, or personal-data feature | Open |
 | `braces` advisory in the deploy tool (see above). | `gh-pages` dev dependency | When `gh-pages` ships a fix | No reachable path |
 
@@ -34,7 +35,7 @@ The site is whatever the `gh-pages` branch holds, so a rollback is a redeploy of
 2. Check it out in a fresh worktree, run `pnpm install`, then `pnpm ghdeploy`.
 3. Wait for the Pages build (`gh api repos/IHTFY/raven/pages/builds/latest --jq .status` reads `built`) and load the site.
 
-Prefer a redeploy to unpublishing Pages, which would leave the domain open to the takeover described above until the domain is verified.
+Prefer a redeploy to unpublishing Pages.
 
 ## Incidents
 
