@@ -23,7 +23,7 @@ Everything lives in `src/lib/engine`. A puzzle is a family of pictures plus one 
   - set rules: union, intersection, exclusive or, and subtraction of the first two pictures; each part appearing in exactly one or exactly two pictures per row; parts moving one place per step; each part following its own direction; and a row group laid over a column group.
 - **The solver** (`solver.js`) checks each grid without knowing how it was made. It tries every hypothesis a person might (rows, columns, both diagonals, progressions, sums, set operations, counts) and keeps the puzzle only if every hypothesis that fits the eight visible pictures predicts the same missing one. Ties between attributes ("the black ones are always big") have to hold for the answer too.
 - **Options** (`choices.js`): the five wrong options change the answer along balanced axes, so every value of every feature appears equally often and the answer never stands out as the option the others were built from.
-- **Difficulty** (`generate.js`): each rule has a score, and a puzzle's score adds the family's base, its rules, and a cost for each extra attribute that changes. A test aims for scores from 1 up to 8.5 and avoids two puzzles of the same style in a row.
+- **Difficulty** (`generate.js`): each rule has a score, and a puzzle's score adds the family's base, its rules, and a cost for each extra attribute that changes. A test aims for scores from 1 up to 8.5, avoids two puzzles of the same style in a row, and allows only the first question to be one where everything just repeats along rows or columns.
 
 ## Not an IQ test
 
