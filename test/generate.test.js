@@ -123,14 +123,22 @@ describe('tests', () => {
   });
 
   it('get harder and keep switching styles', () => {
-    for (const seed of ['a', 'b', 'c', 'd', 'e']) {
+    for (const seed of range(0, 49).map((i) => `styles/${i}`)) {
       const test = generateTest(seed);
       expect(test).toHaveLength(TEST_LENGTH);
       const third = Math.floor(TEST_LENGTH / 3);
       const mean = (list) => list.reduce((s, p) => s + p.score, 0) / list.length;
       expect(mean(test.slice(0, third))).toBeLessThan(mean(test.slice(-third)));
       const repeats = test.filter((p, i) => i > 0 && p.group === test[i - 1].group).length;
-      expect(repeats, seed).toBeLessThanOrEqual(1);
+      expect(repeats, seed).toBe(0);
+    }
+  });
+
+  it('have at most one puzzle where everything just repeats along rows or columns', () => {
+    const repeatsOnly = (p) => p.rules.every((r) => r.rule === 'rows' || r.rule === 'cols');
+    for (const seed of range(0, 29)) {
+      const simple = generateTest(`simple/${seed}`).filter(repeatsOnly);
+      expect(simple.length, `seed simple/${seed}`).toBeLessThanOrEqual(1);
     }
   });
 
