@@ -81,7 +81,9 @@ const firstInput = new Promise((resolve) => {
   for (const type of ['pointerdown', 'keydown']) addEventListener(type, resolve, { once: true, capture: true });
 });
 
-/** Fills `box` with the ad shown during play, once the player has tapped or pressed a key. */
+/** Fills `box` with the ad shown during play, once the player has tapped or pressed a key, if the box is still on the page. */
 export function showPlayAd(box, key) {
-  firstInput.then(() => showAd(box, key));
+  firstInput.then(() => {
+    if (box.isConnected) showAd(box, key);
+  });
 }

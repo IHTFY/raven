@@ -4,6 +4,7 @@
 </script>
 
 <script>
+  import { MediaQuery } from 'svelte/reactivity';
   import { PLAY_AD_SIZES, PLAY_AD_SLOT, mayBeAdFree, showPlayAd } from '../ads.js';
 
   /**
@@ -15,34 +16,37 @@
 
   // A buyer gets no box at all, even before the loader has checked the token.
   const buyer = mayBeAdFree();
-  const pick = () => (buyer ? null : (PLAY_AD_SIZES.find((p) => matchMedia(p.query).matches) ?? null));
-  let placement = $state(pick());
+  const queries = PLAY_AD_SIZES.map((p) => new MediaQuery(p.query));
+  const placement = $derived(buyer ? undefined : PLAY_AD_SIZES.find((_, i) => queries[i].current));
+  const [width, height] = $derived(placement?.size.split('x') ?? []);
 
-  $effect(() => {
-    const lists = PLAY_AD_SIZES.map((p) => matchMedia(p.query));
-    const update = () => (placement = pick());
-    for (const list of lists) list.addEventListener('change', update);
-    return () => lists.forEach((list) => list.removeEventListener('change', update));
-  });
-
-  // Sheets and toasts stop above the band, so nothing covers the ad.
+  // Sheets and toasts stay 150 px clear of the ad, left of the rail or above
+  // the band, so nothing covers it or crowds it with buttons.
   let aside = $state();
+  let box = $state();
   $effect(() => {
-    if (placement?.at !== 'bottom' || !aside) return;
-    const root = document.documentElement.style;
-    const track = () => root.setProperty('--play-ad-bottom', `${aside.offsetHeight}px`);
+    if (!aside || !box) return;
+    const root = document.documentElement;
+    const side = placement.at === 'side';
+    const property = side ? '--play-ad-right' : '--play-ad-bottom';
+    const track = () => {
+      const ad = box.getBoundingClientRect();
+      const px = (side ? root.clientWidth - ad.left : root.clientHeight - ad.top) + 150;
+      root.style.setProperty(property, `${Math.round(px)}px`);
+    };
     const observer = new ResizeObserver(track);
     observer.observe(aside);
+    addEventListener('resize', track);
     return () => {
       observer.disconnect();
-      root.removeProperty('--play-ad-bottom');
+      removeEventListener('resize', track);
+      root.style.removeProperty(property);
     };
   });
 
   // A new box, so a new ad, each time this screen opens or the size changes.
-  let box = $state();
   $effect(() => {
-    if (box && placement) showPlayAd(box, `${name}/${++opened}`);
+    if (box) showPlayAd(box, `${name}/${++opened}`);
   });
 </script>
 
@@ -55,7 +59,14 @@
           <p>Advertisements</p>
           <a href="https://ihtfy.com/privacy">Privacy</a>
         </div>
-        <div class="ad-box size-{placement.size}" bind:this={box} data-ad-slot={PLAY_AD_SLOT} data-ad-size={placement.size}></div>
+        <div
+          class="ad-box"
+          bind:this={box}
+          style:width="{width}px"
+          style:height="{height}px"
+          data-ad-slot={PLAY_AD_SLOT}
+          data-ad-size={placement.size}
+        ></div>
       </aside>
     {/key}
   {/if}
@@ -106,23 +117,5 @@
 
   .small {
     font-size: 0.85rem;
-  }
-
-  .size-320x50 {
-    width: 320px;
-    height: 50px;
-    min-height: 50px;
-  }
-
-  .size-160x600 {
-    width: 160px;
-    height: 600px;
-    min-height: 600px;
-  }
-
-  .size-300x600 {
-    width: 300px;
-    height: 600px;
-    min-height: 600px;
   }
 </style>

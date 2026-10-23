@@ -109,7 +109,7 @@ describe('loadForBuyer', () => {
 describe('showPlayAd', () => {
   it('loads nothing until the first tap or key press', async () => {
     const { showPlayAd } = await loadAds();
-    const box = document.createElement('div');
+    const box = document.body.appendChild(document.createElement('div'));
     showPlayAd(box, 'test/1');
     await tick();
     expect(added).toHaveLength(0);
@@ -119,14 +119,27 @@ describe('showPlayAd', () => {
     added[0].dispatchEvent(new Event('load'));
     await tick();
     expect(window.ihtfyAds.show.mock.calls).toEqual([[box, 'test/1']]);
+    box.remove();
   });
 
   it('starts at once after an earlier key press', async () => {
     const { showPlayAd } = await loadAds();
     dispatchEvent(new Event('keydown'));
-    showPlayAd(document.createElement('div'), 'practice/1');
+    const box = document.body.appendChild(document.createElement('div'));
+    showPlayAd(box, 'practice/1');
     await tick();
     expect(added).toHaveLength(1);
+    box.remove();
+  });
+
+  it('skips a box that left the page before the first tap', async () => {
+    const { showPlayAd } = await loadAds();
+    const box = document.body.appendChild(document.createElement('div'));
+    showPlayAd(box, 'test/1');
+    box.remove();
+    dispatchEvent(new Event('pointerdown'));
+    await tick();
+    expect(added).toHaveLength(0);
   });
 });
 

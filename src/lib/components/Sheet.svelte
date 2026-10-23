@@ -18,19 +18,19 @@
 </div>
 
 <style>
-  /* Both stop above an ad band (PlayAd), so they never cover the ad. */
+  /* Both stop short of the ad shown during play (PlayAd), so they never cover it. */
   .backdrop {
     position: fixed;
-    inset: 0 0 var(--play-ad-bottom, 0px);
+    inset: 0 var(--play-ad-right, 0px) var(--play-ad-bottom, 0px) 0;
     background: rgb(8 10 16 / 0.5);
     z-index: 10;
   }
 
   .sheet {
     position: fixed;
-    inset: auto 0 var(--play-ad-bottom, 0px);
+    inset: auto var(--play-ad-right, 0px) var(--play-ad-bottom, 0px) 0;
     z-index: 11;
-    width: min(100%, 560px);
+    width: min(100% - var(--play-ad-right, 0px), 560px);
     max-height: calc(88dvh - var(--play-ad-bottom, 0px));
     margin: 0 auto;
     display: flex;
