@@ -12,9 +12,8 @@ const LOADER = import.meta.env.VITE_ADS_LOADER || 'https://ihtfy.com/ads/v1.js';
 // local builds never request live ones.
 export const RESULTS_AD_SLOT = '6470163205';
 
-// The unit shown during a test or practice. It shares the results unit until
-// a unit of its own exists in AdSense.
-export const PLAY_AD_SLOT = RESULTS_AD_SLOT;
+// The games-play unit: 300×600 in AdSense; the 160×600 box uses it too.
+export const PLAY_AD_SLOT = '7239875855';
 
 // The size of the ad beside the puzzles during play, by window, first match
 // wins. Narrower or shorter windows, phones included, get no ad during play.
