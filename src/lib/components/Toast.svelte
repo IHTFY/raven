@@ -19,7 +19,7 @@
   .toast {
     position: fixed;
     left: 50%;
-    bottom: calc(24px + env(safe-area-inset-bottom));
+    bottom: calc(24px + var(--play-ad-bottom, 0px) + env(safe-area-inset-bottom));
     translate: -50% 0;
     z-index: 20;
     padding: 12px 18px;

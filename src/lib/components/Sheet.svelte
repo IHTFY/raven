@@ -18,19 +18,20 @@
 </div>
 
 <style>
+  /* Both stop above an ad band (PlayAd), so they never cover the ad. */
   .backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 0 var(--play-ad-bottom, 0px);
     background: rgb(8 10 16 / 0.5);
     z-index: 10;
   }
 
   .sheet {
     position: fixed;
-    inset: auto 0 0;
+    inset: auto 0 var(--play-ad-bottom, 0px);
     z-index: 11;
     width: min(100%, 560px);
-    max-height: 88dvh;
+    max-height: calc(88dvh - var(--play-ad-bottom, 0px));
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -41,7 +42,7 @@
   }
 
   .full {
-    height: 88dvh;
+    height: calc(88dvh - var(--play-ad-bottom, 0px));
   }
 
   header {

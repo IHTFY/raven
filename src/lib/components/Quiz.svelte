@@ -6,6 +6,7 @@
   import Board from './Board.svelte';
   import { optionForKey } from './Choices.svelte';
   import Icon from './Icon.svelte';
+  import PlayAd from './PlayAd.svelte';
   import Sheet from './Sheet.svelte';
 
   const test = store.test;
@@ -61,31 +62,33 @@
 
 <svelte:window onkeydown={keydown} />
 
-<main>
-  <header>
-    <button class="icon-btn" onclick={() => go()} aria-label="Home (the timer keeps running)"><Icon name="home" /></button>
-    <button class="count btn tabular" onclick={() => (overview = true)} aria-label="All puzzles">
-      <Icon name="grid" size={16} />
-      {test.current + 1} / {puzzles.length}
-    </button>
-    <span class="timer tabular muted" role="timer" aria-label="Time left">{clock(test.deadline - now)}</span>
-  </header>
+<PlayAd name="test">
+  <main>
+    <header>
+      <button class="icon-btn" onclick={() => go()} aria-label="Home (the timer keeps running)"><Icon name="home" /></button>
+      <button class="count btn tabular" onclick={() => (overview = true)} aria-label="All puzzles">
+        <Icon name="grid" size={16} />
+        {test.current + 1} / {puzzles.length}
+      </button>
+      <span class="timer tabular muted" role="timer" aria-label="Time left">{clock(test.deadline - now)}</span>
+    </header>
 
-  {#key test.current}
-    <Board {puzzle} chosen={test.answers[test.current]} onchoose={choose} />
-  {/key}
+    {#key test.current}
+      <Board {puzzle} chosen={test.answers[test.current]} onchoose={choose} />
+    {/key}
 
-  <footer>
-    <button class="btn" onclick={() => move(test.current - 1)} disabled={test.current === 0} aria-label="Previous puzzle">
-      <Icon name="back" /> Back
-    </button>
-    {#if test.current === last}
-      <button class="btn primary" onclick={() => (overview = true)}>Finish <Icon name="flag" /></button>
-    {:else}
-      <button class="btn" onclick={() => move(test.current + 1)} aria-label="Next puzzle">Next <Icon name="next" /></button>
-    {/if}
-  </footer>
-</main>
+    <footer>
+      <button class="btn" onclick={() => move(test.current - 1)} disabled={test.current === 0} aria-label="Previous puzzle">
+        <Icon name="back" /> Back
+      </button>
+      {#if test.current === last}
+        <button class="btn primary" onclick={() => (overview = true)}>Finish <Icon name="flag" /></button>
+      {:else}
+        <button class="btn" onclick={() => move(test.current + 1)} aria-label="Next puzzle">Next <Icon name="next" /></button>
+      {/if}
+    </footer>
+  </main>
+</PlayAd>
 
 {#if overview}
   <Sheet title="All puzzles" onclose={() => (overview = false)}>

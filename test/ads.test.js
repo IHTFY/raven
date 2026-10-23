@@ -24,7 +24,8 @@ afterEach(() => {
   vi.restoreAllMocks();
   delete window.ihtfyAds;
   localStorage.clear();
-  document.cookie = 'ihtfy-ad-free=; Max-Age=0';
+  // An expiry in the past; happy-dom sometimes keeps an empty cookie after Max-Age=0.
+  document.cookie = 'ihtfy-ad-free=; Expires=Thu, 01 Jan 1970 00:00:00 GMT';
 });
 
 describe('showAd', () => {
@@ -102,5 +103,38 @@ describe('loadForBuyer', () => {
     } finally {
       delete document.cookie;
     }
+  });
+});
+
+describe('showPlayAd', () => {
+  it('loads nothing until the first tap or key press', async () => {
+    const { showPlayAd } = await loadAds();
+    const box = document.createElement('div');
+    showPlayAd(box, 'test/1');
+    await tick();
+    expect(added).toHaveLength(0);
+    dispatchEvent(new Event('pointerdown'));
+    await tick();
+    expect(added).toHaveLength(1);
+    added[0].dispatchEvent(new Event('load'));
+    await tick();
+    expect(window.ihtfyAds.show.mock.calls).toEqual([[box, 'test/1']]);
+  });
+
+  it('starts at once after an earlier key press', async () => {
+    const { showPlayAd } = await loadAds();
+    dispatchEvent(new Event('keydown'));
+    showPlayAd(document.createElement('div'), 'practice/1');
+    await tick();
+    expect(added).toHaveLength(1);
+  });
+});
+
+describe('mayBeAdFree', () => {
+  it('tells whether this browser holds a token', async () => {
+    const { mayBeAdFree } = await loadAds();
+    expect(mayBeAdFree()).toBe(false);
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    expect(mayBeAdFree()).toBe(true);
   });
 });
