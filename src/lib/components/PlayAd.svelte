@@ -8,9 +8,9 @@
   import { PLAY_AD_SIZES, PLAY_AD_SLOT, mayBeAdFree, showPlayAd } from '../ads.js';
 
   /**
-   * A test or practice screen with one ad beside it (wide screens) or below it
-   * (tall phones), 150 px from its buttons. The ad changes only when the
-   * screen opens or the window crosses into another size, never on a timer.
+   * A test or practice screen with one ad beside it on wide windows, 150 px
+   * from its buttons. The ad changes only when the screen opens or the window
+   * crosses into another size, never on a timer.
    */
   let { name, children } = $props();
 
@@ -20,19 +20,16 @@
   const placement = $derived(buyer ? undefined : PLAY_AD_SIZES.find((_, i) => queries[i].current));
   const [width, height] = $derived(placement?.size.split('x') ?? []);
 
-  // Sheets and toasts stay 150 px clear of the ad, left of the rail or above
-  // the band, so nothing covers it or crowds it with buttons.
+  // Sheets stay 150 px left of the ad, so nothing covers it or crowds it with
+  // buttons.
   let aside = $state();
   let box = $state();
   $effect(() => {
     if (!aside || !box) return;
     const root = document.documentElement;
-    const side = placement.at === 'side';
-    const property = side ? '--play-ad-right' : '--play-ad-bottom';
     const track = () => {
-      const ad = box.getBoundingClientRect();
-      const px = (side ? root.clientWidth - ad.left : root.clientHeight - ad.top) + 150;
-      root.style.setProperty(property, `${Math.round(px)}px`);
+      const px = root.clientWidth - box.getBoundingClientRect().left + 150;
+      root.style.setProperty('--play-ad-right', `${Math.round(px)}px`);
     };
     const observer = new ResizeObserver(track);
     observer.observe(aside);
@@ -40,7 +37,7 @@
     return () => {
       observer.disconnect();
       removeEventListener('resize', track);
-      root.style.removeProperty(property);
+      root.style.removeProperty('--play-ad-right');
     };
   });
 
@@ -50,7 +47,7 @@
   });
 </script>
 
-<div class="frame {placement?.at ?? ''}">
+<div class="frame" class:side={placement}>
   <div class="play">{@render children()}</div>
   {#if placement}
     {#key placement.size}
@@ -85,17 +82,19 @@
     justify-content: center;
   }
 
-  .frame.bottom {
-    grid-template-rows: minmax(0, 1fr) auto;
-  }
-
-  /* The column is as wide as the ad; the label and links wrap above it on a narrow rail. */
+  /*
+   * The column is as wide as the ad; the label and links wrap above it on a
+   * narrow rail. Game buttons sit at least 12 px inside the play area, so the
+   * margin keeps the ad over 150 px from them.
+   */
   .ad {
     display: grid;
     grid-template-columns: min-content;
     justify-content: center;
     align-content: start;
     gap: 4px;
+    margin-left: 150px;
+    padding: 8px 16px 0 0;
   }
 
   .row {
@@ -103,16 +102,6 @@
     flex-wrap: wrap;
     justify-content: space-between;
     column-gap: 12px;
-  }
-
-  /* Game buttons sit at least 12 px inside the play area, so these gaps keep the ad over 150 px from them. */
-  .side .ad {
-    margin-left: 150px;
-    padding: 8px 16px 0 0;
-  }
-
-  .bottom .ad {
-    padding: 118px 0 6px;
   }
 
   .small {

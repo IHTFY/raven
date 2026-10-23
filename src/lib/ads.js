@@ -1,4 +1,4 @@
-// The ads on the Results screen and beside or below the puzzles come from the
+// The ads on the Results screen and beside the puzzles come from the
 // shared IHTFY loader, which ihtfy.com serves for all the games (its source is
 // in the IHTFY/com.ihtfy repo). Nothing ad-related loads before the player's
 // first tap or key press: the loader arrives when a test or practice starts or
@@ -16,15 +16,11 @@ export const RESULTS_AD_SLOT = '6470163205';
 // a unit of its own exists in AdSense.
 export const PLAY_AD_SLOT = RESULTS_AD_SLOT;
 
-// The size of the ad shown during play, by screen, first match wins. A rail
-// goes beside the puzzles on wide screens. A band goes below them on screens
-// tall enough to keep 150 px between it and the buttons while the puzzle stays
-// at least as big as on a 360×640 phone without the band. Other screens get no
-// ad during play.
+// The size of the ad beside the puzzles during play, by window, first match
+// wins. Narrower or shorter windows, phones included, get no ad during play.
 export const PLAY_AD_SIZES = [
-  { query: '(min-width: 1500px) and (min-height: 700px)', size: '300x600', at: 'side' },
-  { query: '(min-width: 1200px) and (min-height: 700px)', size: '160x600', at: 'side' },
-  { query: '(max-width: 1199px) and (min-height: 840px)', size: '320x50', at: 'bottom' },
+  { query: '(min-width: 1500px) and (min-height: 700px)', size: '300x600' },
+  { query: '(min-width: 1200px) and (min-height: 700px)', size: '160x600' },
 ];
 
 let loader = null;

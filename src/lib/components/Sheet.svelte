@@ -18,20 +18,20 @@
 </div>
 
 <style>
-  /* Both stop short of the ad shown during play (PlayAd), so they never cover it. */
+  /* Both stop short of the ad beside the puzzles (PlayAd), so they never cover it. */
   .backdrop {
     position: fixed;
-    inset: 0 var(--play-ad-right, 0px) var(--play-ad-bottom, 0px) 0;
+    inset: 0 var(--play-ad-right, 0px) 0 0;
     background: rgb(8 10 16 / 0.5);
     z-index: 10;
   }
 
   .sheet {
     position: fixed;
-    inset: auto var(--play-ad-right, 0px) var(--play-ad-bottom, 0px) 0;
+    inset: auto var(--play-ad-right, 0px) 0 0;
     z-index: 11;
     width: min(100% - var(--play-ad-right, 0px), 560px);
-    max-height: calc(88dvh - var(--play-ad-bottom, 0px));
+    max-height: 88dvh;
     margin: 0 auto;
     display: flex;
     flex-direction: column;
@@ -42,7 +42,7 @@
   }
 
   .full {
-    height: calc(88dvh - var(--play-ad-bottom, 0px));
+    height: 88dvh;
   }
 
   header {
