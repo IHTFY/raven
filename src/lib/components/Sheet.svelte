@@ -18,18 +18,19 @@
 </div>
 
 <style>
+  /* Both stop short of the ad beside the puzzles (PlayAd), so they never cover it. */
   .backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 var(--play-ad-right, 0px) 0 0;
     background: rgb(8 10 16 / 0.5);
     z-index: 10;
   }
 
   .sheet {
     position: fixed;
-    inset: auto 0 0;
+    inset: auto var(--play-ad-right, 0px) 0 0;
     z-index: 11;
-    width: min(100%, 560px);
+    width: min(100% - var(--play-ad-right, 0px), 560px);
     max-height: 88dvh;
     margin: 0 auto;
     display: flex;

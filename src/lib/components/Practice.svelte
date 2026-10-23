@@ -6,6 +6,7 @@
   import { optionForKey } from './Choices.svelte';
   import Explain from './Explain.svelte';
   import Icon from './Icon.svelte';
+  import PlayAd from './PlayAd.svelte';
   import Sheet from './Sheet.svelte';
   import Toast from './Toast.svelte';
 
@@ -40,34 +41,36 @@
 
 <svelte:window onkeydown={keydown} />
 
-<main>
-  <header>
-    <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
-    <button class="btn level" onclick={() => (toast = 'Puzzles get harder when you’re right and easier when you miss.')}>
-      Level {levelOf(p.target)}
-    </button>
-    <span class="score tabular muted" aria-label="{p.right} right out of {p.done}">
-      <Icon name="check" size={16} />{p.right}/{p.done}
-    </span>
-  </header>
+<PlayAd name="practice">
+  <main>
+    <header>
+      <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
+      <button class="btn level" onclick={() => (toast = 'Puzzles get harder when you’re right and easier when you miss.')}>
+        Level {levelOf(p.target)}
+      </button>
+      <span class="score tabular muted" aria-label="{p.right} right out of {p.done}">
+        <Icon name="check" size={16} />{p.right}/{p.done}
+      </span>
+    </header>
 
-  {#key p.count}
-    <Board {puzzle} chosen={p.choice} {revealed} onchoose={choose} />
-  {/key}
+    {#key p.count}
+      <Board {puzzle} chosen={p.choice} {revealed} onchoose={choose} />
+    {/key}
 
-  <footer>
-    {#if revealed}
-      <p class="verdict" class:good={right} class:bad={!right}>
-        <Icon name={right ? 'check' : 'cross'} size={18} />
-        {right ? 'Right' : 'Not quite'}
-      </p>
-      <button class="btn" onclick={() => (why = true)}>Why?</button>
-      <button class="btn primary" onclick={next}>Next <Icon name="next" /></button>
-    {:else}
-      <p class="muted hint">Pick the picture that fits the empty square.</p>
-    {/if}
-  </footer>
-</main>
+    <footer>
+      {#if revealed}
+        <p class="verdict" class:good={right} class:bad={!right}>
+          <Icon name={right ? 'check' : 'cross'} size={18} />
+          {right ? 'Right' : 'Not quite'}
+        </p>
+        <button class="btn" onclick={() => (why = true)}>Why?</button>
+        <button class="btn primary" onclick={next}>Next <Icon name="next" /></button>
+      {:else}
+        <p class="muted hint">Pick the picture that fits the empty square.</p>
+      {/if}
+    </footer>
+  </main>
+</PlayAd>
 
 {#if why}
   <Sheet title="How it works" onclose={() => (why = false)}>

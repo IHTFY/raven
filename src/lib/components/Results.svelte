@@ -83,7 +83,7 @@
     </footer>
   </main>
 
-  <!-- Below the fold, at least 150px from the buttons above; the box keeps its size whether or not an ad fills it. -->
+  <!-- At least 150px from the buttons: beside the results on wide windows, below them on phones. The box keeps its size whether or not an ad fills it. -->
   <aside class="ad">
     <p class="muted small">Advertisements</p>
     <div class="ad-box" bind:this={adBox} data-ad-slot={RESULTS_AD_SLOT}></div>
@@ -97,17 +97,21 @@
   </Sheet>
 {/if}
 
-<Toast bind:message={toast} />
+<Toast top bind:message={toast} />
 
 <style>
   /* Sized from the viewport, not the parents: AdSense sets `height: auto` on an ad's ancestors. */
   .page {
     height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
 
+  /* Fills the space the ad leaves, so on a tall enough phone the ad is in view without scrolling. */
   main {
-    min-height: 100%;
+    flex: 1 0 auto;
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -225,6 +229,19 @@
     justify-items: center;
     gap: 6px;
     padding: 150px 16px 24px;
+  }
+
+  @media (min-width: 1000px) {
+    .page {
+      display: grid;
+      grid-template-columns: minmax(0, 480px) auto;
+      justify-content: center;
+    }
+
+    .ad {
+      align-self: center;
+      padding: 0 16px 0 150px;
+    }
   }
 
   .ad-box {
