@@ -1,8 +1,10 @@
 <script>
+  import { screenAdSlot } from '../ads.js';
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
   import { TEST_MINUTES, currentTheme, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
   import Logo from './Logo.svelte';
 
@@ -11,6 +13,9 @@
 
   const running = $derived(isRunning(store.test) ? store.test : null);
   const theme = $derived(currentTheme());
+
+  // With an ad on the screen, the logo and the older tests make room for it.
+  const hasAd = screenAdSlot('home') !== null;
 
   // A test can run out while you're away from it.
   expireTest();
@@ -53,7 +58,7 @@
   </header>
 
   <section class="hero">
-    <Logo />
+    {#if !hasAd}<Logo />{/if}
     <h1>Raven</h1>
     <p class="muted">Find the missing picture in each pattern.</p>
   </section>
@@ -80,7 +85,7 @@
     <section class="history">
       <h2 class="muted small">Recent tests</h2>
       <ol>
-        {#each store.history.slice(0, 3) as h (h.date)}
+        {#each store.history.slice(0, hasAd ? 2 : 3) as h (h.date)}
           <li class="tabular">
             <b>{h.score}</b><span class="muted">/{h.total}</span>
             <span class="muted">{duration(h.seconds)} · {shortDate(h.date)}</span>
@@ -92,13 +97,18 @@
 
   <footer class="muted small">
     <p>Not a formal IQ test. Inspired by Mensa Norway's test and the Sandia Matrices.</p>
-    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/support/">Support ♥</a> · <a href="https://ihtfy.com/privacy">Privacy</a></p>
+    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/support/">Support ♥</a>{#if !hasAd} · <a href="https://ihtfy.com/privacy/">Privacy</a>{/if}</p>
   </footer>
+
+  <!-- Only once a game has finished in this tab: no ad on a first visit. -->
+  <AdBox screen="home" />
 </main>
 
 <style>
   main {
+    position: relative;
     height: 100%;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -109,9 +119,9 @@
   }
 
   header {
-    align-self: stretch;
-    display: flex;
-    justify-content: flex-end;
+    position: absolute;
+    top: 8px;
+    right: 20px;
   }
 
   .hero {
