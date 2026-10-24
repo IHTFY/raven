@@ -92,7 +92,7 @@
 
   <footer class="muted small">
     <p>Not a formal IQ test. Inspired by Mensa Norway's test and the Sandia Matrices.</p>
-    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/privacy">Privacy</a></p>
+    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/support/">Support ♥</a> · <a href="https://ihtfy.com/privacy">Privacy</a></p>
   </footer>
 </main>
 
