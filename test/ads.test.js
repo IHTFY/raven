@@ -106,11 +106,11 @@ describe('loadForBuyer', () => {
   });
 });
 
-describe('showPlayAd', () => {
+describe('showAdAfterInput', () => {
   it('loads nothing until the first tap or key press', async () => {
-    const { showPlayAd } = await loadAds();
+    const { showAdAfterInput } = await loadAds();
     const box = document.body.appendChild(document.createElement('div'));
-    showPlayAd(box, 'test/1');
+    showAdAfterInput(box, 'test/1');
     await tick();
     expect(added).toHaveLength(0);
     dispatchEvent(new Event('pointerdown'));
@@ -123,19 +123,19 @@ describe('showPlayAd', () => {
   });
 
   it('starts at once after an earlier key press', async () => {
-    const { showPlayAd } = await loadAds();
+    const { showAdAfterInput } = await loadAds();
     dispatchEvent(new Event('keydown'));
     const box = document.body.appendChild(document.createElement('div'));
-    showPlayAd(box, 'practice/1');
+    showAdAfterInput(box, 'practice/1');
     await tick();
     expect(added).toHaveLength(1);
     box.remove();
   });
 
   it('skips a box that left the page before the first tap', async () => {
-    const { showPlayAd } = await loadAds();
+    const { showAdAfterInput } = await loadAds();
     const box = document.body.appendChild(document.createElement('div'));
-    showPlayAd(box, 'test/1');
+    showAdAfterInput(box, 'test/1');
     box.remove();
     dispatchEvent(new Event('pointerdown'));
     await tick();

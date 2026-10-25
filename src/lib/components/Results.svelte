@@ -1,8 +1,9 @@
 <script>
-  import { RESULTS_AD_SLOT, showAd } from '../ads.js';
+  import { noteGameFinished } from '../ads.js';
   import { go, shareUrl } from '../router.svelte.js';
   import { duration } from '../format.js';
   import { elapsed, puzzlesFor, scoreOf, startTest, store } from '../state.svelte.js';
+  import AdBox from './AdBox.svelte';
   import CountUp from './CountUp.svelte';
   import Icon from './Icon.svelte';
   import Review from './Review.svelte';
@@ -26,9 +27,8 @@
   let reviewing = $state(null);
   let toast = $state(null);
 
-  // One ad per finished test; coming back to these results asks for no new one.
-  let adBox;
-  $effect(() => showAd(adBox, `${test.seed}/${test.finished}`));
+  // Lets Home carry an ad from here on.
+  noteGameFinished();
 
   async function share() {
     const url = shareUrl(test.seed);
@@ -47,13 +47,10 @@
 
 <div class="page">
   <main>
-    <header>
-      <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
-      <h1>Results</h1>
-      <button class="icon-btn" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
-    </header>
-
     <section class="score">
+      <h1>Results</h1>
+      <button class="icon-btn home" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
+      <button class="icon-btn share" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
       <p class="big tabular"><CountUp value={score} /><span class="muted">/{puzzles.length}</span></p>
       <p class="muted">{duration(seconds)}{test.finished >= test.deadline ? ' · time ran out' : ''}</p>
     </section>
@@ -83,12 +80,8 @@
     </footer>
   </main>
 
-  <!-- At least 150px from the buttons: beside the results on wide windows, below them on phones. The box keeps its size whether or not an ad fills it. -->
-  <aside class="ad">
-    <p class="muted small">Advertisements</p>
-    <div class="ad-box" bind:this={adBox} data-ad-slot={RESULTS_AD_SLOT}></div>
-    <a class="muted small" href="https://ihtfy.com/privacy">Privacy</a>
-  </aside>
+  <!-- One ad per finished test (coming back to these results asks for no new one), 50 px or more from the buttons: beside the results on wide windows, below them on phones. The box keeps its size whether or not an ad fills it. -->
+  <AdBox screen="results" adKey="{test.seed}/{test.finished}" />
 </div>
 
 {#if reviewing != null}
@@ -106,39 +99,53 @@
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    justify-content: safe center;
   }
 
-  /* Fills the space the ad leaves, so on a tall enough phone the ad is in view without scrolling. */
+  /* The result, its buttons, and the ad below them are one block, centered, and the whole of it fits the phone sizes this was measured on without scrolling. */
   main {
-    flex: 1 0 auto;
+    flex: none;
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(10px, 2.4dvh, 22px);
+    gap: clamp(8px, 2dvh, 20px);
     padding: 8px 16px 12px;
     max-width: 480px;
     margin: 0 auto;
   }
 
-  header {
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  h1 {
-    font-size: 1.1rem;
-    font-weight: 650;
-  }
-
+  /* The result, with Home and Share in its corners. The heading is for screen readers. */
   .score {
+    align-self: stretch;
+    position: relative;
     text-align: center;
   }
 
+  h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .home,
+  .share {
+    position: absolute;
+    top: 0;
+  }
+
+  .home {
+    left: 0;
+  }
+
+  .share {
+    right: 0;
+  }
+
   .big {
-    font-size: clamp(3rem, 12dvh, 4.5rem);
+    font-size: clamp(2.5rem, 8dvh, 4.5rem);
     font-weight: 750;
     line-height: 1.05;
   }
@@ -156,12 +163,22 @@
   }
 
   .part {
-    display: grid;
-    justify-items: center;
-    gap: 2px;
-    padding: 10px 4px;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 4px;
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
+  }
+
+  /* The label and the count don't fit side by side on a narrow phone. */
+  @media (max-width: 351px) {
+    .part {
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
   }
 
   .part b {
@@ -176,14 +193,14 @@
     align-self: stretch;
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
 
   .chip {
     display: grid;
     place-items: center;
     aspect-ratio: 1;
-    max-height: 48px;
+    max-height: 38px;
     border-radius: 10px;
     box-shadow: var(--lift-sm);
     animation: chip-in 200ms var(--ease-out) both;
@@ -217,18 +234,19 @@
   }
 
   footer {
-    margin-top: auto;
     align-self: stretch;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 14px;
   }
 
-  .ad {
-    display: grid;
-    justify-items: center;
-    gap: 6px;
-    padding: 150px 16px 24px;
+  footer .btn {
+    min-height: 52px;
+  }
+
+  /* The ad sits 50 px below the buttons; beside the results on wide windows, 150 px to their right. */
+  .page > :global(.ad) {
+    --ad-padding: 10px 16px 12px;
   }
 
   @media (min-width: 1000px) {
@@ -238,16 +256,10 @@
       justify-content: center;
     }
 
-    .ad {
+    .page > :global(.ad) {
+      --ad-padding: 0 16px 0 150px;
       align-self: center;
-      padding: 0 16px 0 150px;
     }
-  }
-
-  .ad-box {
-    width: 300px;
-    height: 250px;
-    min-height: 250px;
   }
 
   @keyframes chip-in {

@@ -5,7 +5,7 @@
 
 <script>
   import { MediaQuery } from 'svelte/reactivity';
-  import { PLAY_AD_SIZES, PLAY_AD_SLOT, mayBeAdFree, showPlayAd } from '../ads.js';
+  import { PLAY_AD_SIZES, PLAY_AD_SLOT, mayBeAdFree, showAdAfterInput } from '../ads.js';
 
   /**
    * A test or practice screen with one ad beside it on wide windows, 150 px
@@ -43,7 +43,7 @@
 
   // A new box, so a new ad, each time this screen opens or the size changes.
   $effect(() => {
-    if (box) showPlayAd(box, `${name}/${++opened}`);
+    if (box) showAdAfterInput(box, `${name}/${++opened}`);
   });
 </script>
 
@@ -54,7 +54,7 @@
       <aside class="ad" bind:this={aside}>
         <div class="row muted small">
           <p>Advertisements</p>
-          <a href="https://ihtfy.com/privacy">Privacy</a>
+          <a href="https://ihtfy.com/privacy/">Privacy</a>
         </div>
         <div
           class="ad-box"
