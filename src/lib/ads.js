@@ -38,8 +38,12 @@ export function screenAdSlot(screen) {
 
 // The size of the ad box on a screen, by window, first match wins: beside the
 // result on wide windows, or below it, as large as the screen holds with the
-// result and its buttons in view and 50 px between them and the box.
+// result and its buttons in view and 50 px between them and the box. A window
+// under 352 px wide (the widest box plus the screen's side padding) gets none.
+const TOO_NARROW = { query: '(max-width: 351px)', size: null };
+
 const STACKED_SIZES = [
+  TOO_NARROW,
   { query: '(min-height: 860px)', size: '300x250' },
   { query: '(min-height: 700px)', size: '320x100' },
   { query: 'all', size: '320x50' },

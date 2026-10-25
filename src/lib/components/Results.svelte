@@ -172,6 +172,15 @@
     font-size: 0.85rem;
   }
 
+  /* The label and the count don't fit side by side on a narrow phone. */
+  @media (max-width: 351px) {
+    .part {
+      flex-direction: column;
+      align-items: center;
+      gap: 0;
+    }
+  }
+
   .part b {
     font-size: 1.3rem;
   }

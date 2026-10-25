@@ -16,7 +16,10 @@
    */
   let { screen, adKey = null } = $props();
 
+  // The screen never changes while the box is on it.
+  // svelte-ignore state_referenced_locally
   const slot = screenAdSlot(screen);
+  // svelte-ignore state_referenced_locally
   const sizes = SCREEN_AD_SIZES[screen] ?? [];
   const queries = sizes.map((s) => new MediaQuery(s.query));
   const size = $derived(sizes.find((_, i) => queries[i].current)?.size);
@@ -54,9 +57,11 @@
     padding: var(--ad-padding, 0);
   }
 
-  /* The links (the loader adds Remove ads beside Privacy) are 50 px or more above the box. */
+  /* The links are 50 px or more above the box whatever the label's height. The loader adds Remove ads beside Privacy, so the row has room for both and Privacy doesn't move. */
   .links {
-    margin-bottom: 32px;
+    margin-bottom: 48px;
+    width: 11em;
+    text-align: left;
   }
 
   a {

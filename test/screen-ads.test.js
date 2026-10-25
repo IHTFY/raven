@@ -34,6 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   if (app) svelte.unmount(app);
   app = null;
   document.body.innerHTML = '';
@@ -76,7 +77,7 @@ describe('screenAdSlot', () => {
     const loader = ['300x250', '320x50', '320x100', '160x600', '300x600', '728x90'];
     for (const sizes of Object.values(ads.SCREEN_AD_SIZES)) {
       expect(sizes.at(-1).query).toBe('all');
-      for (const { size } of sizes) expect(loader).toContain(size);
+      for (const { size } of sizes) if (size) expect(loader).toContain(size);
     }
   });
 });
@@ -99,12 +100,38 @@ describe('the screens', () => {
     expect(aside.querySelector('a').href).toBe('https://ihtfy.com/privacy/');
   });
 
-  it('sizes the box before any ad fills it, from the window', async () => {
+  /** Makes `matchMedia` answer true for only the queries in `matching`. */
+  const window_ = (...matching) =>
+    vi.stubGlobal('matchMedia', (query) => ({
+      matches: matching.includes(query) || query === 'all',
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+
+  it.each([
+    ['a short phone', [], '320x50'],
+    ['a phone 700 px tall', ['(min-height: 700px)'], '320x100'],
+    ['a phone 860 px tall', ['(min-height: 700px)', '(min-height: 860px)'], '300x250'],
+    ['a wide window', ['(min-width: 1000px) and (min-height: 500px)', '(min-height: 700px)'], '300x250'],
+  ])('sizes the Results box before any ad fills it, for %s', async (_, queries, size) => {
+    window_(...queries);
     const { Results } = await finishedTest();
     const [box] = show(Results);
-    const [width, height] = box.dataset.adSize.split('x');
+    expect(box.dataset.adSize).toBe(size);
+    const [width, height] = size.split('x');
     expect(box.style.width).toBe(`${width}px`);
     expect(box.style.height).toBe(`${height}px`);
+  });
+
+  it('puts no box on a window too narrow to hold one', async () => {
+    window_('(max-width: 351px)', '(min-height: 700px)');
+    const { Home, Results, ads } = await finishedTest();
+    expect(show(Results)).toHaveLength(0);
+    svelte.unmount(app);
+    document.body.innerHTML = '';
+    ads.noteGameFinished();
+    expect(show(Home)).toHaveLength(0);
   });
 
   it('puts no box on Home in a fresh tab, and one after Results was shown', async () => {
@@ -122,6 +149,7 @@ describe('the screens', () => {
   });
 
   it('puts no box on a test or on practice', async () => {
+    window_('(min-height: 700px)');
     const { Quiz, Practice, ads, state } = await load();
     ads.noteGameFinished();
     state.startTest('abc');
