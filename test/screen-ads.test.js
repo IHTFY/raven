@@ -20,8 +20,8 @@ async function load() {
 }
 
 /** Shows `component` and returns the ad boxes on the page. */
-function show(component) {
-  app = svelte.mount(component, { target: document.body });
+function show(component, props = {}) {
+  app = svelte.mount(component, { target: document.body, props });
   svelte.flushSync();
   return [...document.querySelectorAll('[data-ad-slot]')];
 }
@@ -146,6 +146,16 @@ describe('the screens', () => {
     const boxes = show(Home);
     expect(boxes).toHaveLength(1);
     expect(boxes[0].closest('aside').textContent).toContain('Advertisements');
+  });
+
+  it('puts no box on a past test, and reopening one does not count as finishing a game', async () => {
+    const { Home, Results, state } = await load();
+    state.startTest('abc');
+    state.finishTest();
+    expect(show(Results, { past: state.store.history[0] })).toHaveLength(0);
+    svelte.unmount(app);
+    document.body.innerHTML = '';
+    expect(show(Home)).toHaveLength(0);
   });
 
   it('puts no box on a test or on practice', async () => {

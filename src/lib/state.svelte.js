@@ -31,7 +31,13 @@ const isTest = (t) =>
   areNumbers(t.started, t.deadline) &&
   (t.finished === null || areNumbers(t.finished));
 
-const isResult = (h) => isSeed(h?.seed) && areNumbers(h.score, h.total, h.seconds, h.date);
+// Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again.
+const isResult = (h) =>
+  isSeed(h?.seed) &&
+  areNumbers(h.score, h.total, h.seconds, h.date) &&
+  (h.answers === undefined || (Array.isArray(h.answers) && h.answers.length === h.total && h.answers.every(isChoice))) &&
+  (h.generator === undefined || Number.isInteger(h.generator)) &&
+  (h.timedOut === undefined || typeof h.timedOut === 'boolean');
 
 const isPractice = (p) =>
   isSeed(p?.seed) &&
@@ -129,6 +135,9 @@ export function answerTest(k) {
 
 export const elapsed = (test) => Math.round((test.finished - test.started) / 1000);
 
+/** How many finished tests to keep. Each is a few hundred bytes. */
+export const HISTORY_LENGTH = 100;
+
 export function finishTest() {
   const test = store.test;
   test.finished = Math.min(Date.now(), test.deadline);
@@ -139,10 +148,18 @@ export function finishTest() {
       total: test.answers.length,
       seconds: elapsed(test),
       date: test.finished,
+      answers: [...test.answers],
+      generator: GENERATOR,
+      timedOut: test.finished >= test.deadline,
     },
     ...store.history,
-  ].slice(0, 10);
+  ].slice(0, HISTORY_LENGTH);
 }
+
+/** Whether a past test can be opened again: its answers were kept and the same generator still builds its puzzles. */
+export const canReview = (h) => Array.isArray(h.answers) && h.generator === GENERATOR;
+
+export const pastTest = (date) => store.history.find((h) => String(h.date) === String(date)) ?? null;
 
 /** A test left open past its deadline ends at the deadline. */
 export function expireTest() {

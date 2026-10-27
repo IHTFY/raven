@@ -3,7 +3,7 @@
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
-  import { TEST_MINUTES, currentTheme, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { TEST_MINUTES, canReview, currentTheme, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
   import Logo from './Logo.svelte';
@@ -83,12 +83,14 @@
 
   {#if store.history.length}
     <section class="history">
-      <h2 class="muted small">Recent tests</h2>
+      <h2 class="muted small">Recent tests <button class="all" onclick={() => go('history')}>See all <Icon name="next" size={14} /></button></h2>
       <ol>
         {#each store.history.slice(0, hasAd ? 2 : 3) as h (h.date)}
           <li class="tabular">
-            <b>{h.score}</b><span class="muted">/{h.total}</span>
-            <span class="muted">{duration(h.seconds)} · {shortDate(h.date)}</span>
+            <button class="past" disabled={!canReview(h)} onclick={() => go(`history/${h.date}`)}>
+              <b>{h.score}</b><span class="muted">/{h.total}</span>
+              <span class="muted">{duration(h.seconds)} · {shortDate(h.date)}</span>
+            </button>
           </li>
         {/each}
       </ol>
@@ -165,8 +167,11 @@
   }
 
   h2 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     font-weight: 600;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
   }
 
   ol {
@@ -177,17 +182,29 @@
     gap: 4px;
   }
 
-  li {
+  .all {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 0 6px 8px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .past {
+    width: 100%;
     display: flex;
     align-items: baseline;
     gap: 2px;
+    padding: 2px 0;
+    text-align: left;
   }
 
-  li b {
+  .past b {
     font-size: 1.05rem;
   }
 
-  li span:last-child {
+  .past span:last-child {
     margin-left: auto;
     font-size: 0.85rem;
   }
