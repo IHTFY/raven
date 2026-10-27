@@ -10,6 +10,8 @@
     check: 'M5 12.5l4.5 4.5L19 7.5',
     cross: 'M7 7l10 10M17 7L7 17',
     home: 'M4 11l8-7 8 7M6.5 9v11h11V9',
+    list: 'M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01',
+    chart: 'M4 20V10M10 20V4M16 20v-7M21 20H3',
     flag: 'M6 21V4M6 4h11l-2.5 4L17 12H6',
     play: 'M8 5.5v13l10.5-6.5z',
     pause: 'M8.5 5.5v13M15.5 5.5v13',

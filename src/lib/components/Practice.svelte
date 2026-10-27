@@ -20,8 +20,15 @@
   let why = $state(false);
   let toast = $state(null);
 
+  // Time to answer, for the statistics.
+  let shownAt = performance.now();
+  $effect(() => {
+    void p.count;
+    shownAt = performance.now();
+  });
+
   function choose(k) {
-    if (!revealed) choosePractice(puzzle, k);
+    if (!revealed) choosePractice(puzzle, k, (performance.now() - shownAt) / 1000);
   }
 
   function next() {

@@ -83,7 +83,7 @@
 
   {#if store.history.length}
     <section class="history">
-      <h2 class="muted small">Recent tests <button class="all" onclick={() => go('history')}>See all <Icon name="next" size={14} /></button></h2>
+      <h2 class="muted small">Recent tests <span><button class="all" onclick={() => go('stats')}>Stats</button><button class="all" onclick={() => go('history')}>See all <Icon name="next" size={14} /></button></span></h2>
       <ol>
         {#each store.history.slice(0, hasAd ? 2 : 3) as h (h.date)}
           <li class="tabular">

@@ -33,6 +33,10 @@ describe('saves', () => {
         { seed: 'abc', score: 1, total: 2, seconds: 5, date: 9 },
       ],
     },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, times: [1, -1] }] },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, outcomes: 'rx' }] },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, kinds: ['a', 3] }] },
+    { generator: GENERATOR, log: [{ kind: 'tiles:xor', right: 'yes', seconds: 3, target: 2, date: 1 }] },
     [],
     42,
   ];
@@ -40,7 +44,7 @@ describe('saves', () => {
   it.each(malformed)('starts fresh from a malformed save: %j', async (saved) => {
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
-    expect(store).toEqual({ generator: GENERATOR, theme: null, test: null, history: [], practice: null });
+    expect(store).toEqual({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
   });
 
   it('keeps a valid save', async () => {
@@ -50,6 +54,7 @@ describe('saves', () => {
       test: {
         seed: 'abc',
         answers: [2, ...Array(TEST_LENGTH - 1).fill(null)],
+        times: [4.5, ...Array(TEST_LENGTH - 1).fill(0)],
         current: 1,
         started: 1000,
         deadline: 2000,
@@ -57,6 +62,7 @@ describe('saves', () => {
       },
       history: [{ seed: 'xyz', score: 20, total: TEST_LENGTH, seconds: 600, date: 5000 }],
       practice: { seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: 'tiles' },
+      log: [{ kind: 'tiles:xor', right: true, seconds: 3.2, target: 2.2, date: 4000 }],
     };
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
@@ -68,7 +74,7 @@ describe('saves', () => {
     const practice = { seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: null };
     localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR - 1, theme: 'dark', history, practice }));
     const { store } = await loadState();
-    expect(store).toEqual({ generator: GENERATOR, theme: 'dark', test: null, history, practice: null });
+    expect(store).toEqual({ generator: GENERATOR, theme: 'dark', test: null, history, practice: null, log: [] });
   });
 });
 
@@ -112,6 +118,63 @@ describe('past tests', () => {
       finishTest();
     }
     expect(store.history).toHaveLength(HISTORY_LENGTH);
+  });
+});
+
+describe('statistics records', () => {
+  it('gives a test saved before times were kept zero times', async () => {
+    const test = { seed: 'abc', answers: Array(TEST_LENGTH).fill(null), current: 0, started: 1, deadline: 2, finished: null };
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, test }));
+    const { store } = await loadState();
+    expect(store.test.times).toEqual(Array(TEST_LENGTH).fill(0));
+  });
+
+  it('adds up time per puzzle while the test runs, and saves times, styles, and outcomes', async () => {
+    const { answerTest, finishTest, puzzlesFor, spendTime, startTest, store } = await loadState();
+    startTest('abc');
+    spendTime(0, 2.25);
+    spendTime(0, 1);
+    spendTime(3, 4);
+    answerTest(puzzlesFor('abc')[0].answer);
+    finishTest();
+    spendTime(1, 5);
+    const [h] = store.history;
+    expect(h.times.slice(0, 4)).toEqual([3.3, 0, 0, 4]);
+    expect(h.outcomes).toBe('r' + '-'.repeat(TEST_LENGTH - 1));
+    expect(h.kinds[0]).toMatch(/^[a-z]+:[a-zA-Z+]+$/);
+  });
+
+  it('doesn’t count time past the deadline, as when a sleeping tab wakes up late', async () => {
+    vi.useFakeTimers();
+    const { spendTime, startTest, store } = await loadState();
+    startTest('abc');
+    vi.setSystemTime(store.test.deadline + 3600 * 1000);
+    spendTime(0, 3600 + 30);
+    expect(store.test.times[0]).toBe(30);
+  });
+
+  it('keeps at most LOG_LENGTH practice answers from a save', async () => {
+    const log = Array(600).fill({ kind: 'tiles:xor', right: true, seconds: 3, target: 2, date: 1 });
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, log }));
+    const { LOG_LENGTH, store } = await loadState();
+    expect(store.log).toHaveLength(LOG_LENGTH);
+  });
+
+  it('caps the time on a practice puzzle left open', async () => {
+    const { PRACTICE_MAX_SECONDS, choosePractice, practicePuzzle, startPractice, store } = await loadState();
+    startPractice();
+    const puzzle = practicePuzzle(store.practice);
+    choosePractice(puzzle, puzzle.answer, 80000);
+    expect(store.log[0].seconds).toBe(PRACTICE_MAX_SECONDS);
+  });
+
+  it('logs practice answers with their time', async () => {
+    const { choosePractice, practicePuzzle, startPractice, store } = await loadState();
+    startPractice();
+    const puzzle = practicePuzzle(store.practice);
+    choosePractice(puzzle, puzzle.answer, 6.04);
+    expect(store.log).toHaveLength(1);
+    expect(store.log[0]).toMatchObject({ right: true, seconds: 6, kind: expect.stringContaining(`${puzzle.family}:`) });
   });
 });
 

@@ -8,6 +8,7 @@ Inspired by [Olav Hoel Dørum's test](https://test.mensa.no/) and the [Sandia Ma
 
 - **Test:** 35 puzzles in 25 minutes, easiest first. The test comes from a short code in the link, so sharing the link gives someone else the same puzzles. Results split the score into easy, medium, and hard thirds, and every puzzle can be reviewed with an explanation.
 - **Past tests:** the last 100 finished tests are kept with their answers, and each opens its results and explanations again (`#/history`).
+- **Statistics** (`#/stats`): score distribution, median time on each puzzle of a test, and the share right and median time by rule, rule combination, and picture style, from tests and practice. Tests keep the time spent on each puzzle; practice keeps its last 500 answers. All of it stays in the browser (`src/lib/stats.js`).
 - **Practice:** puzzles without end or a timer. They get harder after a right answer and easier after a miss, and "Why?" explains the rules behind each one.
 - **Explanations you can watch:** every rule in an explanation also plays as a short animation: lines lighting up, arrows labelled with each step, two pictures merging into the third with the dropped parts fading out, or a picture turning onto its neighbor (`src/lib/explain.js`, `Demo.svelte`).
 - Dark and light themes, keyboard controls (1–6 or A–F to answer, arrow keys to move between puzzles), and progress saved in the browser.
