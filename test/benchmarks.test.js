@@ -26,5 +26,7 @@ describe('benchmarks', () => {
     ];
     expect(firstTry(b, history).score).toBe(12);
     expect(firstTry(b, [])).toBe(null);
+    // Saves from before generators were recorded may have built other puzzles from the same seed.
+    expect(firstTry(b, [{ seed: b.seed, score: 7, date: 0 }])).toBe(null);
   });
 });

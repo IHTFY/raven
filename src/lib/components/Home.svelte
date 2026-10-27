@@ -83,7 +83,7 @@
   </section>
 
   <!-- Hidden during a test, so starting one never replaces it by surprise. -->
-  {#if !running}
+  {#if !running && currentBenchmarks().length}
     <section class="bench">
       <h2 class="muted small">Benchmarks <span>the same puzzles for everyone</span></h2>
       <div class="row">

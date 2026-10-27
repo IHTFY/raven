@@ -19,7 +19,7 @@ export const currentBenchmarks = () => BENCHMARKS.filter((b) => b.generator === 
 
 /** Your first finished try at a benchmark: the one that compares fairly with other people's. */
 export const firstTry = (benchmark, history) =>
-  history.findLast((h) => h.seed === benchmark.seed && (h.generator ?? benchmark.generator) === benchmark.generator) ?? null;
+  history.findLast((h) => h.seed === benchmark.seed && h.generator === benchmark.generator) ?? null;
 
 export const benchmarkOf = (seed, generator = GENERATOR) => BENCHMARKS.find((b) => b.seed === seed && b.generator === generator) ?? null;
 
