@@ -1,11 +1,19 @@
 <script>
-  /** The rules behind a puzzle, one line per changing attribute. */
+  import { demoOf } from '../explain.js';
+  import Demo from './Demo.svelte';
+
+  /** The rules behind a puzzle, one line per changing attribute, each shown as a short animation. */
   let { puzzle } = $props();
+
+  const items = $derived(puzzle.rules.map((rule) => ({ rule, demo: demoOf(puzzle, rule) })));
 </script>
 
 <ul>
-  {#each puzzle.rules as rule (rule.attr)}
-    <li>{rule.text}</li>
+  {#each items as { rule, demo } (rule.attr)}
+    <li>
+      {rule.text}
+      {#if demo}<Demo {demo} />{/if}
+    </li>
   {/each}
 </ul>
 

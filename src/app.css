@@ -18,6 +18,11 @@
   --accent: #8aa8ff;
   --good: #4fca8f;
   --bad: #ff7a7a;
+  /* Tints for parts in the rule demos: from the first picture, the second, the third, and both. */
+  --tone-a: #6fa0ff;
+  --tone-b: #ffa25c;
+  --tone-c: #c58cff;
+  --tone-both: #4fca8f;
 
   --radius: 18px;
   --radius-sm: 12px;
@@ -42,6 +47,10 @@
   --accent: #3c66d8;
   --good: #17945b;
   --bad: #d23c3c;
+  --tone-a: #2f5fd0;
+  --tone-b: #c8620f;
+  --tone-c: #8a3fd1;
+  --tone-both: #17945b;
 }
 
 *,

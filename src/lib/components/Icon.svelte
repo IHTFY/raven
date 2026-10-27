@@ -11,6 +11,8 @@
     cross: 'M7 7l10 10M17 7L7 17',
     home: 'M4 11l8-7 8 7M6.5 9v11h11V9',
     flag: 'M6 21V4M6 4h11l-2.5 4L17 12H6',
+    play: 'M8 5.5v13l10.5-6.5z',
+    pause: 'M8.5 5.5v13M15.5 5.5v13',
   };
 
   let { name, size = 22 } = $props();
