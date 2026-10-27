@@ -1,8 +1,8 @@
 <script>
   import { noteGameFinished } from '../ads.js';
   import { go, shareUrl } from '../router.svelte.js';
-  import { duration } from '../format.js';
-  import { elapsed, puzzlesFor, scoreOf, startTest, store } from '../state.svelte.js';
+  import { duration, shortDate } from '../format.js';
+  import { elapsed, puzzlesFor, startTest, store } from '../state.svelte.js';
   import AdBox from './AdBox.svelte';
   import CountUp from './CountUp.svelte';
   import Icon from './Icon.svelte';
@@ -10,11 +10,19 @@
   import Sheet from './Sheet.svelte';
   import Toast from './Toast.svelte';
 
-  const test = store.test;
+  /** `past` is a test from the history; without it, these are the results of the test just finished. */
+  let { past = null } = $props();
+
+  const test = past ?? {
+    seed: store.test.seed,
+    answers: store.test.answers,
+    seconds: elapsed(store.test),
+    timedOut: store.test.finished >= store.test.deadline,
+    date: store.test.finished,
+  };
   const puzzles = puzzlesFor(test.seed);
-  const score = scoreOf(test);
-  const seconds = elapsed(test);
   const outcome = (i) => (test.answers[i] == null ? 'blank' : test.answers[i] === puzzles[i].answer ? 'right' : 'wrong');
+  const score = puzzles.filter((_, i) => outcome(i) === 'right').length;
 
   // Thirds of the test, from easiest to hardest.
   const parts = ['Easy', 'Medium', 'Hard'].map((label, k) => {
@@ -28,7 +36,7 @@
   let toast = $state(null);
 
   // Lets Home carry an ad from here on.
-  noteGameFinished();
+  if (!past) noteGameFinished();
 
   async function share() {
     const url = shareUrl(test.seed);
@@ -49,10 +57,14 @@
   <main>
     <section class="score">
       <h1>Results</h1>
-      <button class="icon-btn home" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
+      {#if past}
+        <button class="icon-btn home" onclick={() => go('history')} aria-label="Past tests"><Icon name="back" /></button>
+      {:else}
+        <button class="icon-btn home" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
+      {/if}
       <button class="icon-btn share" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
       <p class="big tabular"><CountUp value={score} /><span class="muted">/{puzzles.length}</span></p>
-      <p class="muted">{duration(seconds)}{test.finished >= test.deadline ? ' · time ran out' : ''}</p>
+      <p class="muted">{duration(test.seconds)}{test.timedOut ? ' · time ran out' : ''}{past ? ` · ${shortDate(test.date)}` : ''}</p>
     </section>
 
     <section class="parts">
@@ -81,7 +93,7 @@
   </main>
 
   <!-- One ad per finished test (coming back to these results asks for no new one), 50 px or more from the buttons: beside the results on wide windows, below them on phones. The box keeps its size whether or not an ad fills it. -->
-  <AdBox screen="results" adKey="{test.seed}/{test.finished}" />
+  {#if !past}<AdBox screen="results" adKey="{test.seed}/{test.date}" />{/if}
 </div>
 
 {#if reviewing != null}

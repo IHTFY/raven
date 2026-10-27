@@ -1,7 +1,8 @@
 <script>
   import { rise } from './lib/motion.js';
   import { route } from './lib/router.svelte.js';
-  import { currentTheme, expireTest, store } from './lib/state.svelte.js';
+  import { canReview, currentTheme, expireTest, pastTest, store } from './lib/state.svelte.js';
+  import History from './lib/components/History.svelte';
   import Home from './lib/components/Home.svelte';
   import Practice from './lib/components/Practice.svelte';
   import Quiz from './lib/components/Quiz.svelte';
@@ -15,6 +16,11 @@
   const view = $derived.by(() => {
     const [page, seed] = route.path;
     if (page === 'practice') return { screen: 'practice' };
+    if (page === 'history') {
+      // Only a saved test can be opened, so the date in the link is looked up rather than trusted.
+      const past = seed && pastTest(seed);
+      return past && canReview(past) ? { screen: 'past', key: past.date, past } : { screen: 'history' };
+    }
     if (page === 'test') {
       const test = store.test;
       if (test && (!seed || seed === test.seed)) return { screen: test.finished ? 'results' : 'quiz', key: test.seed };
@@ -37,6 +43,10 @@
       <Quiz />
     {:else if view.screen === 'results'}
       <Results />
+    {:else if view.screen === 'past'}
+      <Results past={view.past} />
+    {:else if view.screen === 'history'}
+      <History />
     {:else if view.screen === 'practice'}
       <Practice />
     {:else}
