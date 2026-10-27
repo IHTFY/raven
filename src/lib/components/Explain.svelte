@@ -12,7 +12,10 @@
   {#each items as { rule, demo } (rule.attr)}
     <li>
       {rule.text}
-      {#if demo}<Demo {demo} />{/if}
+      <!-- A new puzzle can reuse this row; start its demo over rather than keep the old step. -->
+      {#key demo}
+        {#if demo}<Demo {demo} />{/if}
+      {/key}
     </li>
   {/each}
 </ul>
