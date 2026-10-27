@@ -34,7 +34,12 @@ const isTest = (t) =>
 // Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again.
 const isResult = (h) =>
   isSeed(h?.seed) &&
-  areNumbers(h.score, h.total, h.seconds, h.date) &&
+  Number.isInteger(h.total) &&
+  h.total > 0 &&
+  Number.isInteger(h.score) &&
+  h.score >= 0 &&
+  h.score <= h.total &&
+  areNumbers(h.seconds, h.date) &&
   (h.answers === undefined || (Array.isArray(h.answers) && h.answers.length === h.total && h.answers.every(isChoice))) &&
   (h.generator === undefined || Number.isInteger(h.generator)) &&
   (h.timedOut === undefined || typeof h.timedOut === 'boolean');
@@ -52,7 +57,10 @@ function load() {
     const state = blank();
     // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
     if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
-    if (Array.isArray(saved?.history) && saved.history.every(isResult)) state.history = saved.history;
+    // Screens and links find a past test by its date, so dates must be unique.
+    if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
+      state.history = saved.history;
+    }
     // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
     if (saved?.generator === GENERATOR) {
       if (isTest(saved.test)) state.test = saved.test;
@@ -157,7 +165,7 @@ export function finishTest() {
 }
 
 /** Whether a past test can be opened again: its answers were kept and the same generator still builds its puzzles. */
-export const canReview = (h) => Array.isArray(h.answers) && h.generator === GENERATOR;
+export const canReview = (h) => Array.isArray(h.answers) && h.answers.length === TEST_LENGTH && h.generator === GENERATOR;
 
 export const pastTest = (date) => store.history.find((h) => String(h.date) === String(date)) ?? null;
 

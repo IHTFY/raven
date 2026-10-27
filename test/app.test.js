@@ -23,6 +23,16 @@ describe('saves', () => {
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, answers: [0] }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, answers: [0, 7] }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, generator: '4' }] },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: -1, total: 2, seconds: 5, date: 9 }] },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: 3, total: 2, seconds: 5, date: 9 }] },
+    { generator: GENERATOR, history: [{ seed: 'xyz', score: 0, total: 0, seconds: 5, date: 9 }] },
+    {
+      generator: GENERATOR,
+      history: [
+        { seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9 },
+        { seed: 'abc', score: 1, total: 2, seconds: 5, date: 9 },
+      ],
+    },
     [],
     42,
   ];
@@ -85,6 +95,14 @@ describe('past tests', () => {
     const { canReview, store } = await loadState();
     expect(store.history).toEqual(history);
     expect(store.history.map(canReview)).toEqual([false, false]);
+  });
+
+  it('doesn’t reopen a result whose answers aren’t a whole test', async () => {
+    const history = [{ seed: 'short', score: 1, total: 2, seconds: 5, date: 6000, answers: [0, null], generator: GENERATOR }];
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history }));
+    const { canReview, store } = await loadState();
+    expect(store.history).toEqual(history);
+    expect(canReview(store.history[0])).toBe(false);
   });
 
   it('keeps up to HISTORY_LENGTH tests', async () => {
