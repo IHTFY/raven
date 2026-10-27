@@ -109,7 +109,7 @@ function build({ family, rules, score }, rng) {
     design: choices.design,
     figures: { cells: cells.slice(0, 8).map(draw), options: choices.options.map(draw) },
     rules: family.attrs.flatMap((attr, k) =>
-      rules[k].id === 'constant' ? [] : [{ attr: attr.name, rule: rules[k].id, text: rules[k].explain(attr, made[k].params) }],
+      rules[k].id === 'constant' ? [] : [{ attr: attr.name, rule: rules[k].id, text: rules[k].explain(attr, made[k].params), params: made[k].params }],
     ),
   };
 }

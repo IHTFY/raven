@@ -161,7 +161,7 @@ function move(attr, rng) {
   const grid = gridOf((r, c) => power(U, r, power(T, c, base)));
   const lines = [...SYSTEMS.rows, ...SYSTEMS.cols];
   if (!lines.every((line) => distinct(line.map((i) => grid[i])))) return null;
-  return { grid, params: { right: T.text, down: U.text } };
+  return { grid, params: { right: T.text, down: U.text, rightName: T.name, downName: U.name } };
 }
 
 const PATTERNS = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, 0, 1], [0, 1, 1]];
@@ -176,7 +176,7 @@ function ownLines(attr, rng) {
     const on = rng.pick(PATTERNS);
     SYSTEMS[systems[k]].forEach((line, j) => on[j] && line.forEach((cell) => (grid[cell] |= 1 << slot)));
   });
-  return grid.every(Boolean) ? { grid, params: {} } : null;
+  return grid.every(Boolean) ? { grid, params: { slots: used, systems } } : null;
 }
 
 /** Cell = (part fixed by the row) ∪ (part fixed by the column), from disjoint pools. */
@@ -192,7 +192,7 @@ function overlay(attr, rng) {
   const across = subsets(slots.slice(0, p));
   const down = subsets(slots.slice(p, p + q));
   if (!across || !down) return null;
-  return { grid: gridOf((r, c) => across[r] | down[c]), params: {} };
+  return { grid: gridOf((r, c) => across[r] | down[c]), params: { across, down } };
 }
 
 export const RULES = [
