@@ -2,6 +2,7 @@
   import { go } from '../router.svelte.js';
   import { duration, shortDate } from '../format.js';
   import { canReview, store } from '../state.svelte.js';
+  import { benchmarkOf } from '../benchmarks.js';
   import Icon from './Icon.svelte';
 
   /** Every saved test, newest first. Tests whose answers were kept open their results again. */
@@ -22,7 +23,7 @@
           <button class="row" disabled={!open} onclick={() => go(`history/${h.date}`)} aria-label="Test from {shortDate(h.date)}: {h.score} out of {h.total}{open ? '' : ', score only'}">
             <span class="score tabular"><b>{h.score}</b><span class="muted">/{h.total}</span></span>
             <span class="bar sunk"><span style:width="{(100 * h.score) / h.total}%"></span></span>
-            <span class="meta muted tabular">{duration(h.seconds)} · {shortDate(h.date)}</span>
+            <span class="meta muted tabular">{#if h.generator != null && benchmarkOf(h.seed, h.generator)}<b class="tag">{benchmarkOf(h.seed, h.generator).name}</b> · {/if}{duration(h.seconds)} · {shortDate(h.date)}</span>
             {#if open}<Icon name="next" size={18} />{:else}<span class="muted small">score only</span>{/if}
           </button>
         </li>
@@ -117,6 +118,11 @@
 
   .meta {
     font-size: 0.8rem;
+  }
+
+  .tag {
+    color: var(--accent);
+    font-weight: 600;
   }
 
   .small {

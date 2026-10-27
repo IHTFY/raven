@@ -4,6 +4,7 @@
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
   import { TEST_MINUTES, canReview, currentTheme, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { currentBenchmarks, firstTry } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
   import Logo from './Logo.svelte';
@@ -80,6 +81,22 @@
     {/if}
     <button class="btn" onclick={() => go('practice')}>Practice <span class="muted">no timer</span></button>
   </section>
+
+  <!-- Hidden during a test, so starting one never replaces it by surprise. -->
+  {#if !running && currentBenchmarks().length}
+    <section class="bench">
+      <h2 class="muted small">Benchmarks <span>the same puzzles for everyone</span></h2>
+      <div class="row">
+        {#each currentBenchmarks() as b (b.id)}
+          {@const first = firstTry(b, store.history)}
+          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${first.date}`) : begin(b.seed))} aria-label="{b.name}{first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
+            <span>{b.name.replace('Benchmark ', '')}</span>
+            <span class="muted tabular">{first ? `${first.score}/${first.total}` : 'Take'}</span>
+          </button>
+        {/each}
+      </div>
+    </section>
+  {/if}
 
   {#if store.history.length}
     <section class="history">
@@ -164,6 +181,27 @@
 
   .history {
     align-self: stretch;
+  }
+
+  .bench {
+    align-self: stretch;
+  }
+
+  .bench h2 span {
+    font-weight: 400;
+  }
+
+  .bench .row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 6px;
+  }
+
+  .bench .btn {
+    min-height: 44px;
+    padding: 0 8px;
+    justify-content: space-between;
   }
 
   h2 {

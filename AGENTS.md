@@ -11,7 +11,7 @@ The repository and the site are both public. `docs/security.md` lists what's bee
 - Make changes on a branch in a worktree, open a pull request against `master`, and squash-merge it. There is no CI, so run `pnpm check` (tests, then a production build) before pushing.
 - Live state lives in `HANDOFF.md` at the root of the main checkout. It's never committed.
 - Tests live in `test/`. Engine tests run in Node; tests that need `localStorage` or DOM elements start with `// @vitest-environment happy-dom`. A bug fix comes with a test that fails without it.
-- Bump `GENERATOR` in `src/lib/engine/generate.js` whenever the same seed would build different puzzles. Loading a save from another generator drops the test and practice in progress.
+- Bump `GENERATOR` in `src/lib/engine/generate.js` whenever the same seed would build different puzzles. Loading a save from another generator drops the test and practice in progress. Benchmarks (`src/lib/benchmarks.js`) are pinned to a generator and a fingerprint: after a bump, add new benchmark entries for the new generator rather than editing old ones.
 - Anything read from `localStorage` or the URL is checked where it enters (`load()` in `src/lib/state.svelte.js`, the seed pattern in `src/App.svelte`).
 
 ## Deploying

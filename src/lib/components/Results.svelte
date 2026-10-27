@@ -3,6 +3,7 @@
   import { go, shareUrl } from '../router.svelte.js';
   import { duration, shortDate } from '../format.js';
   import { elapsed, puzzlesFor, startTest, store } from '../state.svelte.js';
+  import { benchmarkOf } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import CountUp from './CountUp.svelte';
   import Icon from './Icon.svelte';
@@ -21,6 +22,7 @@
     date: store.test.finished,
   };
   const puzzles = puzzlesFor(test.seed);
+  const benchmark = benchmarkOf(test.seed);
   const outcome = (i) => (test.answers[i] == null ? 'blank' : test.answers[i] === puzzles[i].answer ? 'right' : 'wrong');
   const score = puzzles.filter((_, i) => outcome(i) === 'right').length;
 
@@ -64,7 +66,7 @@
       {/if}
       <button class="icon-btn share" onclick={share} aria-label="Share this test"><Icon name="share" /></button>
       <p class="big tabular"><CountUp value={score} /><span class="muted">/{puzzles.length}</span></p>
-      <p class="muted">{duration(test.seconds)}{test.timedOut ? ' · time ran out' : ''}{past ? ` · ${shortDate(test.date)}` : ''}</p>
+      <p class="muted">{duration(test.seconds)}{test.timedOut ? ' · time ran out' : ''}{past ? ` · ${shortDate(test.date)}` : ''}{benchmark ? ` · ${benchmark.name}` : ''}</p>
     </section>
 
     <section class="parts">
