@@ -12,6 +12,10 @@ import { MediaQuery } from 'svelte/reactivity';
 
 const KEY = 'raven';
 export const TEST_MINUTES = 25;
+/** How many practice answers the statistics keep. */
+export const LOG_LENGTH = 500;
+/** Practice has no clock, so a puzzle left open for longer than this counts as this long. */
+export const PRACTICE_MAX_SECONDS = 600;
 
 const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
 
@@ -71,7 +75,7 @@ function load() {
     if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
       state.history = saved.history;
     }
-    if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log;
+    if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log.slice(0, LOG_LENGTH);
     // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
     if (saved?.generator === GENERATOR) {
       // Tests started before times were kept count from zero.
@@ -157,7 +161,10 @@ export function answerTest(k) {
 /** Add time spent looking at a puzzle of the running test. */
 export function spendTime(i, seconds) {
   const test = store.test;
-  if (isRunning(test) && seconds > 0) test.times[i] = Math.round((test.times[i] + seconds) * 10) / 10;
+  if (!isRunning(test)) return;
+  // A phone can put the tab to sleep and wake it after the deadline; time past the deadline wasn't spent on the puzzle.
+  const spent = seconds - Math.max(0, (Date.now() - test.deadline) / 1000);
+  if (spent > 0) test.times[i] = Math.round((test.times[i] + spent) * 10) / 10;
 }
 
 /** A short name for a puzzle's style: its family and the rules on its changing attributes, like "tiles:xor". */
@@ -213,15 +220,12 @@ export const practicePuzzle = (p) => generatePuzzle(`${p.seed}/${p.count}`, p.ta
 /** Levels 1 to 10 for showing the difficulty. */
 export const levelOf = (target) => 1 + Math.round(((target - EASIEST) / (HARDEST - EASIEST)) * 9);
 
-/** How many practice answers the statistics keep. */
-export const LOG_LENGTH = 500;
-
 export function choosePractice(puzzle, choice, seconds = 0) {
   const p = store.practice;
   p.choice = choice;
   p.done += 1;
   if (choice === puzzle.answer) p.right += 1;
-  const attempt = { kind: kindOf(puzzle), right: choice === puzzle.answer, seconds: Math.round(seconds * 10) / 10, target: p.target, date: Date.now() };
+  const attempt = { kind: kindOf(puzzle), right: choice === puzzle.answer, seconds: Math.round(Math.min(seconds, PRACTICE_MAX_SECONDS) * 10) / 10, target: p.target, date: Date.now() };
   store.log = [attempt, ...store.log].slice(0, LOG_LENGTH);
 }
 

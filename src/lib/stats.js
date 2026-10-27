@@ -136,4 +136,7 @@ export const byFamily = (list, min) => difficulty(list, (kind) => [parseKind(kin
 export const byCombination = (list, min) => difficulty(list, (kind) => [parseKind(kind).rules.join('+')], min);
 
 /** "or+rows" → "Union (A + B) · Same along each row". */
-export const comboName = (key) => key.split('+').map((r) => RULE_NAMES[r] ?? r).join(' · ');
+/** The name for `key` in `names`, or the key itself. Keys come from saves, so inherited members like `constructor` don't count. */
+export const nameIn = (names, key) => (Object.hasOwn(names, key) ? names[key] : key);
+
+export const comboName = (key) => key.split('+').map((r) => nameIn(RULE_NAMES, r)).join(' · ');

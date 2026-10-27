@@ -3,7 +3,7 @@
   import { clock } from '../format.js';
   import { go } from '../router.svelte.js';
   import { store } from '../state.svelte.js';
-  import { FAMILY_NAMES, RULE_NAMES, attempts, byCombination, byFamily, byPosition, byRule, comboName, histogram, summary } from '../stats.js';
+  import { FAMILY_NAMES, RULE_NAMES, attempts, byCombination, byFamily, byPosition, byRule, comboName, histogram, nameIn, summary } from '../stats.js';
   import Bars from './Bars.svelte';
   import Icon from './Icon.svelte';
 
@@ -18,9 +18,9 @@
   const positions = $derived(byPosition(tests, TEST_LENGTH));
   const list = $derived(attempts(store.history, store.log));
   const tables = $derived([
-    { title: 'Rules', rows: byRule(list, 1), name: (k) => RULE_NAMES[k] ?? k },
+    { title: 'Rules', rows: byRule(list, 1), name: (k) => nameIn(RULE_NAMES, k) },
     { title: 'Rule combinations', rows: byCombination(list, 3).slice(0, 10), name: comboName, note: 'At least 3 answers each; hardest 10.' },
-    { title: 'Picture styles', rows: byFamily(list, 1), name: (k) => FAMILY_NAMES[k] ?? k },
+    { title: 'Picture styles', rows: byFamily(list, 1), name: (k) => nameIn(FAMILY_NAMES, k) },
   ]);
   const timed = $derived(positions.some((p) => p.seconds != null));
 </script>

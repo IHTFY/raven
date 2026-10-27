@@ -7,6 +7,7 @@ describe('statistics', () => {
   it('reads kinds', () => {
     expect(parseKind('tiles:or+rows')).toEqual({ family: 'tiles', rules: ['or', 'rows'] });
     expect(comboName('or+rows')).toBe('Union (A + B) · Same along each row');
+    expect(comboName('constructor+toString')).toBe('constructor · toString');
   });
 
   it('takes medians', () => {

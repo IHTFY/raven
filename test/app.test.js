@@ -144,6 +144,30 @@ describe('statistics records', () => {
     expect(h.kinds[0]).toMatch(/^[a-z]+:[a-zA-Z+]+$/);
   });
 
+  it('doesn’t count time past the deadline, as when a sleeping tab wakes up late', async () => {
+    vi.useFakeTimers();
+    const { spendTime, startTest, store } = await loadState();
+    startTest('abc');
+    vi.setSystemTime(store.test.deadline + 3600 * 1000);
+    spendTime(0, 3600 + 30);
+    expect(store.test.times[0]).toBe(30);
+  });
+
+  it('keeps at most LOG_LENGTH practice answers from a save', async () => {
+    const log = Array(600).fill({ kind: 'tiles:xor', right: true, seconds: 3, target: 2, date: 1 });
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, log }));
+    const { LOG_LENGTH, store } = await loadState();
+    expect(store.log).toHaveLength(LOG_LENGTH);
+  });
+
+  it('caps the time on a practice puzzle left open', async () => {
+    const { PRACTICE_MAX_SECONDS, choosePractice, practicePuzzle, startPractice, store } = await loadState();
+    startPractice();
+    const puzzle = practicePuzzle(store.practice);
+    choosePractice(puzzle, puzzle.answer, 80000);
+    expect(store.log[0].seconds).toBe(PRACTICE_MAX_SECONDS);
+  });
+
   it('logs practice answers with their time', async () => {
     const { choosePractice, practicePuzzle, startPractice, store } = await loadState();
     startPractice();
