@@ -11,7 +11,7 @@
   <header>
     <button class="icon-btn" onclick={() => go()} aria-label="Home"><Icon name="home" /></button>
     <h1>Past tests</h1>
-    <span></span>
+    <button class="icon-btn" onclick={() => go('stats')} aria-label="Statistics"><Icon name="chart" /></button>
   </header>
 
   {#if store.history.length}

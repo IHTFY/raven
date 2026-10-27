@@ -2,7 +2,7 @@
   import { go } from '../router.svelte.js';
   import { clock, plural } from '../format.js';
   import { pressesControl } from '../keys.js';
-  import { answerTest, finishTest, puzzlesFor, store } from '../state.svelte.js';
+  import { answerTest, finishTest, puzzlesFor, spendTime, store } from '../state.svelte.js';
   import Board from './Board.svelte';
   import { optionForKey } from './Choices.svelte';
   import Icon from './Icon.svelte';
@@ -26,6 +26,14 @@
     return () => clearInterval(id);
   });
 
+  // Time on each puzzle, added up over every visit to it, for the statistics.
+  let shownAt = performance.now();
+  $effect(() => {
+    const i = test.current;
+    shownAt = performance.now();
+    return () => spendTime(i, (performance.now() - shownAt) / 1000);
+  });
+
   const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
 
   // After a pick, move on once the choice has had a moment to show,
@@ -44,6 +52,8 @@
   $effect(() => () => clearTimeout(advance));
 
   function finish() {
+    spendTime(test.current, (performance.now() - shownAt) / 1000);
+    shownAt = performance.now();
     finishTest();
     go(`test/${test.seed}`);
   }

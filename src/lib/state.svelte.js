@@ -13,12 +13,15 @@ import { MediaQuery } from 'svelte/reactivity';
 const KEY = 'raven';
 export const TEST_MINUTES = 25;
 
-const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null });
+const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
 
 const isSeed = (seed) => typeof seed === 'string' && seed !== '';
 const OPTIONS = 6;
 const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < OPTIONS);
 const areNumbers = (...xs) => xs.every(Number.isFinite);
+const isTimes = (times, n) => Array.isArray(times) && times.length === n && times.every((t) => Number.isFinite(t) && t >= 0);
+const isKinds = (kinds, n) => Array.isArray(kinds) && kinds.length === n && kinds.every((k) => typeof k === 'string' && k.length <= 120);
+const isOutcomes = (o, n) => typeof o === 'string' && o.length === n && /^[rw-]*$/.test(o);
 
 const isTest = (t) =>
   isSeed(t?.seed) &&
@@ -29,6 +32,7 @@ const isTest = (t) =>
   t.current >= 0 &&
   t.current < TEST_LENGTH &&
   areNumbers(t.started, t.deadline) &&
+  (t.times === undefined || isTimes(t.times, TEST_LENGTH)) &&
   (t.finished === null || areNumbers(t.finished));
 
 // Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again.
@@ -42,7 +46,13 @@ const isResult = (h) =>
   areNumbers(h.seconds, h.date) &&
   (h.answers === undefined || (Array.isArray(h.answers) && h.answers.length === h.total && h.answers.every(isChoice))) &&
   (h.generator === undefined || Number.isInteger(h.generator)) &&
-  (h.timedOut === undefined || typeof h.timedOut === 'boolean');
+  (h.timedOut === undefined || typeof h.timedOut === 'boolean') &&
+  (h.times === undefined || isTimes(h.times, h.total)) &&
+  (h.kinds === undefined || isKinds(h.kinds, h.total)) &&
+  (h.outcomes === undefined || isOutcomes(h.outcomes, h.total));
+
+/** One answered practice puzzle, for the statistics. */
+const isAttempt = (a) => isKinds([a?.kind], 1) && typeof a.right === 'boolean' && areNumbers(a.seconds, a.target, a.date) && a.seconds >= 0;
 
 const isPractice = (p) =>
   isSeed(p?.seed) &&
@@ -61,9 +71,11 @@ function load() {
     if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
       state.history = saved.history;
     }
+    if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log;
     // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
     if (saved?.generator === GENERATOR) {
-      if (isTest(saved.test)) state.test = saved.test;
+      // Tests started before times were kept count from zero.
+      if (isTest(saved.test)) state.test = { ...saved.test, times: saved.test.times ?? Array(TEST_LENGTH).fill(0) };
       if (isPractice(saved.practice)) state.practice = saved.practice;
     }
     return state;
@@ -121,6 +133,7 @@ export function startTest(seed = upcoming) {
   store.test = {
     seed,
     answers: Array(TEST_LENGTH).fill(null),
+    times: Array(TEST_LENGTH).fill(0),
     current: 0,
     started: now,
     deadline: now + TEST_MINUTES * 60_000,
@@ -141,6 +154,15 @@ export function answerTest(k) {
   return true;
 }
 
+/** Add time spent looking at a puzzle of the running test. */
+export function spendTime(i, seconds) {
+  const test = store.test;
+  if (isRunning(test) && seconds > 0) test.times[i] = Math.round((test.times[i] + seconds) * 10) / 10;
+}
+
+/** A short name for a puzzle's style: its family and the rules on its changing attributes, like "tiles:xor". */
+export const kindOf = (puzzle) => `${puzzle.family}:${puzzle.rules.map((r) => r.rule).sort().join('+')}`;
+
 export const elapsed = (test) => Math.round((test.finished - test.started) / 1000);
 
 /** How many finished tests to keep. Each is a few hundred bytes. */
@@ -149,6 +171,7 @@ export const HISTORY_LENGTH = 100;
 export function finishTest() {
   const test = store.test;
   test.finished = Math.min(Date.now(), test.deadline);
+  const puzzles = puzzlesFor(test.seed);
   store.history = [
     {
       seed: test.seed,
@@ -159,6 +182,9 @@ export function finishTest() {
       answers: [...test.answers],
       generator: GENERATOR,
       timedOut: test.finished >= test.deadline,
+      times: [...test.times],
+      kinds: puzzles.map(kindOf),
+      outcomes: puzzles.map((p, i) => (test.answers[i] == null ? '-' : test.answers[i] === p.answer ? 'r' : 'w')).join(''),
     },
     ...store.history,
   ].slice(0, HISTORY_LENGTH);
@@ -187,11 +213,16 @@ export const practicePuzzle = (p) => generatePuzzle(`${p.seed}/${p.count}`, p.ta
 /** Levels 1 to 10 for showing the difficulty. */
 export const levelOf = (target) => 1 + Math.round(((target - EASIEST) / (HARDEST - EASIEST)) * 9);
 
-export function choosePractice(puzzle, choice) {
+/** How many practice answers the statistics keep. */
+export const LOG_LENGTH = 500;
+
+export function choosePractice(puzzle, choice, seconds = 0) {
   const p = store.practice;
   p.choice = choice;
   p.done += 1;
   if (choice === puzzle.answer) p.right += 1;
+  const attempt = { kind: kindOf(puzzle), right: choice === puzzle.answer, seconds: Math.round(seconds * 10) / 10, target: p.target, date: Date.now() };
+  store.log = [attempt, ...store.log].slice(0, LOG_LENGTH);
 }
 
 export function nextPractice(puzzle) {
