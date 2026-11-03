@@ -208,3 +208,26 @@ describe('tests', () => {
     expect((performance.now() - start) / 10).toBeLessThan(400);
   });
 });
+
+describe('link seeds', () => {
+  const CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const linkSeed = (rng) => Array.from({ length: rng.int(1, 24) }, () => CHARS[rng.int(0, CHARS.length - 1)]).join('');
+  /** Seeds that once failed, kept as fixed cases. */
+  const FAILED = [];
+
+  it('all build a test, none slowly', () => {
+    // Any seed matching a shared link's pattern starts a test, so none may fail or stall. The same seeds run every time, so a failure repeats.
+    const rng = createRng('link seeds');
+    const seeds = [...FAILED, 'a', '0', 'Z'.repeat(24), '9'.repeat(24), ...range(0, 119).map(() => linkSeed(rng))];
+    let slowest = { seed: null, ms: 0 };
+    for (const seed of seeds) {
+      const start = performance.now();
+      const puzzles = generateTest(seed);
+      const ms = performance.now() - start;
+      if (ms > slowest.ms) slowest = { seed, ms };
+      expect(puzzles, seed).toHaveLength(TEST_LENGTH);
+    }
+    expect(slowest.ms, `slowest seed: ${slowest.seed}`).toBeLessThan(1500);
+  });
+});
+
