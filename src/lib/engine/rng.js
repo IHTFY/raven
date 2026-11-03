@@ -74,3 +74,7 @@ export function randomSeed() {
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   return Array.from(bytes, (b) => SEED_ALPHABET[b % SEED_ALPHABET.length]).join('');
 }
+
+/** What a seed from a link or a save may look like. */
+export const SEED = /^[a-z0-9]{1,24}$/i;
+export const isSeed = (seed) => typeof seed === 'string' && SEED.test(seed);

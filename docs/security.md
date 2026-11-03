@@ -5,7 +5,7 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 ## What the app takes in and holds
 
 - No server, no accounts, no payments. GitHub Pages serves static files.
-- Input comes from three places: the URL hash (a test seed from a shared link, matched against `/^[a-z0-9]{1,24}$/i` in `src/App.svelte`), the save in `localStorage` (checked field by field in `load()`, `src/lib/state.svelte.js`), and keystrokes and taps.
+- Input comes from three places: the URL hash (a test seed from a shared link, matched against `SEED`, `/^[a-z0-9]{1,24}$/i` in `src/lib/engine/rng.js`), the save in `localStorage` (checked field by field in `load()`, `src/lib/state.svelte.js`: seeds against the same `SEED`, dates and counters in bounded ranges, practice `group` and `target` against the engine's groups and difficulty range, history capped at the retention limit), and keystrokes and taps.
 - Scores and answers stay in the browser. Nothing is sent anywhere by the app's own code.
 - Third-party code: Google AdSense, in two units: one for a box on Results (300×250 beside the results on wide windows, 320×50, 320×100, or on windows at least 860 px tall 300×250 below them) and, once a game has finished in the tab, on Home; another for a 160×600 or 300×600 box beside the puzzles during a test or practice, on windows at least 1200×700. `src/lib/ads.js` loads the shared loader `https://ihtfy.com/ads/v1.js` (from the com.ihtfy repository) after the visitor's first tap or key press, and the loader loads AdSense at browser idle. A visitor with an `ihtfy-ad-free` key in `localStorage` or a cookie of that name gets the loader at startup instead, so it can hide the ads before they show; the app checks only that the key exists, and the loader checks the token. The first page load downloads nothing third-party for anyone else. AdSense runs in its own frames, but the loader and AdSense's script run in the page with full access to it, and nothing checks the loader's contents (no integrity hash or CSP). There are no secrets or accounts on the page to take. The loader skips ads offline, and on hosts other than `ihtfy.com` it asks for test ads only.
 - Credentials: none in the repository or the bundle. Deploys push to the `gh-pages` branch with the maintainer's GitHub login.
@@ -22,7 +22,12 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 
 - A full security audit of the source, quick profile, at `e720871`: four survey passes, three reviewers (link and save input, ads, build and history), and a final review of what they covered. It was source-only: no code ran, and the live site wasn't probed. No confirmed findings and no open leads. Git history was searched again for secrets and personal details: clean.
 - Not yet checked: whether any link seed makes the puzzle generator fail or stall, which would leave the test screen broken for anyone opening that link (#14).
-- Saved seeds get a looser check than link seeds (#15). Only the visitor or same-origin script can write the save.
+- Saved seeds got a looser check than link seeds (#15). Only the visitor or same-origin script can write the save.
+
+## Checked on 2026-11-02
+
+- A second source-only audit at `30ffadd`: 0 confirmed findings. Its follow-ups on saved input are closed (#15): saved seeds use the link-seed pattern, dates fall in a range the formatter can show, practice `group`, `target`, and counters are bounded, and saved history is cut to the retention limit on load.
+- `.gitignore` now covers `.env*`, key, and certificate files.
 
 ## Open items
 
@@ -33,7 +38,7 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 | No Content Security Policy. GitHub Pages can't set headers, so it would be a `<meta>` tag, with a hash for the inline theme script in `index.html`. Low value while the app has no accounts or secrets to steal. If one is added, AdSense needs a nonce-based policy or a host list; the com.ihtfy README lists the hosts seen. | `index.html` | Before any account, payment, or personal-data feature | Open |
 | The ad loader runs with full access to the page and nothing checks its contents. Whoever controls `https://ihtfy.com/ads/v1.js` (that repository, its hosting, or the `ihtfy.com` DNS) can run script on iq.ihtfy.com. A CSP host list (row above) narrows where script comes from; an integrity hash isn't possible while the loader changes in place. | `src/lib/ads.js` | Before any account, payment, or personal-data feature | Open; accepted while the page holds nothing to take |
 | The app can be framed by any site. GitHub Pages can't send `frame-ancestors` or `X-Frame-Options`, and a `<meta>` CSP can't set `frame-ancestors`. No action on the page changes anything beyond the visitor's own browser, so there's nothing to trick a click into. | Hosting | Before any account, payment, or other action that matters outside the visitor's browser | Open |
-| `preinstall` runs `npx only-allow pnpm` without a pinned version, fetching it from the registry on every install. The `packageManager` field in `package.json` does the same job without a download. | `package.json` | Before any CI that installs dependencies | Open |
+| `preinstall` ran `npx only-allow pnpm` without a pinned version, fetching it from the registry on every install. The `packageManager` field in `package.json` names pnpm without a download. | `package.json` | Before any CI that installs dependencies | Fixed 2026-11-02: `preinstall` removed, `packageManager` pins pnpm. Unlike `only-allow`, this doesn't stop `npm install` from running |
 | `pnpm ghdeploy` publishes `dist/` with dotfiles (`gh-pages -t`). Only `.nojekyll` is there today; a stray dotfile copied into `public/` would go live. | `package.json`, `public/` | Before anything secret is kept near the build | Open; check `dist/` before deploying |
 | `braces` advisory in the deploy tool (see above). | `gh-pages` dev dependency | When `gh-pages` ships a fix | No reachable path |
 

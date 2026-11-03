@@ -1,4 +1,5 @@
 <script>
+  import { isSeed } from './lib/engine/rng.js';
   import { rise } from './lib/motion.js';
   import { route } from './lib/router.svelte.js';
   import { canReview, currentTheme, expireTest, pastTest, store } from './lib/state.svelte.js';
@@ -8,8 +9,6 @@
   import Practice from './lib/components/Practice.svelte';
   import Quiz from './lib/components/Quiz.svelte';
   import Results from './lib/components/Results.svelte';
-
-  const SEED = /^[a-z0-9]{1,24}$/i;
 
   // A test left open in another visit may have run out of time meanwhile.
   expireTest();
@@ -26,7 +25,7 @@
     if (page === 'test') {
       const test = store.test;
       if (test && (!seed || seed === test.seed)) return { screen: test.finished ? 'results' : 'quiz', key: test.seed };
-      if (seed && SEED.test(seed)) return { screen: 'home', shared: seed };
+      if (isSeed(seed)) return { screen: 'home', shared: seed };
     }
     return { screen: 'home' };
   });

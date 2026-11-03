@@ -15,6 +15,8 @@ import { determined } from './solver.js';
 /** Bump whenever a change makes the same seed build different puzzles. */
 export const GENERATOR = 4;
 export const TEST_LENGTH = 35;
+/** The families' groups, which practice can ask to avoid. */
+export const GROUPS = [...new Set(FAMILIES.map((f) => f.group))];
 const TOLERANCE = 1.25;
 /** Each extra changing attribute is one more thing to track. */
 const PER_ATTRIBUTE = 0.25;
