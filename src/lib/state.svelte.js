@@ -3,8 +3,8 @@
  * a seed always rebuilds the same ones.
  */
 
-import { EASIEST, GENERATOR, HARDEST, TEST_LENGTH, generatePuzzle, generateTest } from './engine/generate.js';
-import { randomSeed } from './engine/rng.js';
+import { EASIEST, GENERATOR, GROUPS, HARDEST, TEST_LENGTH, generatePuzzle, generateTest } from './engine/generate.js';
+import { isSeed, randomSeed } from './engine/rng.js';
 import { go } from './router.svelte.js';
 import { flushSync } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
@@ -14,12 +14,20 @@ const KEY = 'raven';
 export const TEST_MINUTES = 25;
 /** How many practice answers the statistics keep. */
 export const LOG_LENGTH = 500;
+/** How many finished tests to keep. Each is a few hundred bytes. */
+export const HISTORY_LENGTH = 100;
 /** Practice has no clock, so a puzzle left open for longer than this counts as this long. */
 export const PRACTICE_MAX_SECONDS = 600;
 
 const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
 
-const isSeed = (seed) => typeof seed === 'string' && seed !== '';
+/** The last moment the date formatter shows (the end of year 9999); a saved date must fall between 0 and this. */
+const MAX_DATE = 253402300799999;
+/** Far beyond what anyone answers in practice, so a counter above it is not from this app. */
+const MAX_COUNT = 1_000_000;
+const isDate = (t) => Number.isFinite(t) && t >= 0 && t <= MAX_DATE;
+const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= MAX_COUNT;
+const isTarget = (t) => Number.isFinite(t) && t >= EASIEST && t <= HARDEST;
 const OPTIONS = 6;
 const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < OPTIONS);
 const areNumbers = (...xs) => xs.every(Number.isFinite);
@@ -35,9 +43,10 @@ const isTest = (t) =>
   Number.isInteger(t.current) &&
   t.current >= 0 &&
   t.current < TEST_LENGTH &&
-  areNumbers(t.started, t.deadline) &&
+  isDate(t.started) &&
+  isDate(t.deadline) &&
   (t.times === undefined || isTimes(t.times, TEST_LENGTH)) &&
-  (t.finished === null || areNumbers(t.finished));
+  (t.finished === null || isDate(t.finished));
 
 // Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again.
 const isResult = (h) =>
@@ -47,7 +56,8 @@ const isResult = (h) =>
   Number.isInteger(h.score) &&
   h.score >= 0 &&
   h.score <= h.total &&
-  areNumbers(h.seconds, h.date) &&
+  areNumbers(h.seconds) &&
+  isDate(h.date) &&
   (h.answers === undefined || (Array.isArray(h.answers) && h.answers.length === h.total && h.answers.every(isChoice))) &&
   (h.generator === undefined || Number.isInteger(h.generator)) &&
   (h.timedOut === undefined || typeof h.timedOut === 'boolean') &&
@@ -56,14 +66,15 @@ const isResult = (h) =>
   (h.outcomes === undefined || isOutcomes(h.outcomes, h.total));
 
 /** One answered practice puzzle, for the statistics. */
-const isAttempt = (a) => isKinds([a?.kind], 1) && typeof a.right === 'boolean' && areNumbers(a.seconds, a.target, a.date) && a.seconds >= 0;
+const isAttempt = (a) => isKinds([a?.kind], 1) && typeof a.right === 'boolean' && areNumbers(a.seconds) && a.seconds >= 0 && a.seconds <= PRACTICE_MAX_SECONDS && isTarget(a.target) && isDate(a.date);
 
 const isPractice = (p) =>
   isSeed(p?.seed) &&
-  [p.count, p.right, p.done].every(Number.isInteger) &&
-  areNumbers(p.target) &&
+  [p.count, p.right, p.done].every(isCount) &&
+  p.right <= p.done &&
+  isTarget(p.target) &&
   isChoice(p.choice) &&
-  (p.group === null || typeof p.group === 'string');
+  (p.group === null || GROUPS.includes(p.group));
 
 function load() {
   try {
@@ -73,7 +84,7 @@ function load() {
     if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
     // Screens and links find a past test by its date, so dates must be unique.
     if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
-      state.history = saved.history;
+      state.history = saved.history.slice(0, HISTORY_LENGTH);
     }
     if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log.slice(0, LOG_LENGTH);
     // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
@@ -171,9 +182,6 @@ export function spendTime(i, seconds) {
 export const kindOf = (puzzle) => `${puzzle.family}:${puzzle.rules.map((r) => r.rule).sort().join('+')}`;
 
 export const elapsed = (test) => Math.round((test.finished - test.started) / 1000);
-
-/** How many finished tests to keep. Each is a few hundred bytes. */
-export const HISTORY_LENGTH = 100;
 
 export function finishTest() {
   const test = store.test;

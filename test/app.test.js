@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { GENERATOR, TEST_LENGTH } from '../src/lib/engine/generate.js';
+import { EASIEST, GENERATOR, HARDEST, TEST_LENGTH } from '../src/lib/engine/generate.js';
 import { pressesControl } from '../src/lib/keys.js';
 
 /** A fresh copy of the app state, loaded from whatever is in localStorage. */
@@ -12,8 +12,45 @@ async function loadState() {
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.useRealTimers());
 
+const MAX_DATE = 253402300799999; // 9999-12-31, the last year the date formatter shows in four digits
+const aTest = (extra = {}) => ({ seed: 'abc', answers: Array(TEST_LENGTH).fill(null), times: Array(TEST_LENGTH).fill(0), current: 0, started: 1000, deadline: 2000, finished: null, ...extra });
+const aResult = (extra = {}) => ({ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, ...extra });
+const aPractice = (extra = {}) => ({ seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: null, ...extra });
+const anAttempt = (extra = {}) => ({ kind: 'tiles:xor', right: true, seconds: 3, target: 2, date: 1, ...extra });
+
 describe('saves', () => {
   const malformed = [
+    // Seeds must fit the pattern links use: 1 to 24 letters and digits.
+    { generator: GENERATOR, test: aTest({ seed: 'a'.repeat(25) }) },
+    { generator: GENERATOR, test: aTest({ seed: 'a/b' }) },
+    { generator: GENERATOR, test: aTest({ seed: 'two words' }) },
+    { generator: GENERATOR, history: [aResult({ seed: 'x'.repeat(25) })] },
+    { generator: GENERATOR, history: [aResult({ seed: '#/test/x' })] },
+    { generator: GENERATOR, practice: aPractice({ seed: 'a'.repeat(25) }) },
+    { generator: GENERATOR, practice: aPractice({ seed: 'é' }) },
+    // Practice: a known family group, a target in the difficulty range, bounded counters.
+    { generator: GENERATOR, practice: aPractice({ group: 'bogus' }) },
+    { generator: GENERATOR, practice: aPractice({ group: 'constructor' }) },
+    { generator: GENERATOR, practice: aPractice({ target: EASIEST - 0.1 }) },
+    { generator: GENERATOR, practice: aPractice({ target: HARDEST + 0.1 }) },
+    { generator: GENERATOR, practice: aPractice({ target: 1e308 }) },
+    { generator: GENERATOR, practice: aPractice({ count: -1 }) },
+    { generator: GENERATOR, practice: aPractice({ count: 1e9 }) },
+    { generator: GENERATOR, practice: aPractice({ done: -1 }) },
+    { generator: GENERATOR, practice: aPractice({ done: 1e9, right: 0 }) },
+    { generator: GENERATOR, practice: aPractice({ right: 4, done: 3 }) },
+    { generator: GENERATOR, practice: aPractice({ right: -1 }) },
+    { generator: GENERATOR, practice: aPractice({ choice: 6 }) },
+    // Dates must be ones the formatter can show.
+    { generator: GENERATOR, history: [aResult({ date: 1e300 })] },
+    { generator: GENERATOR, history: [aResult({ date: 8.64e15 })] },
+    { generator: GENERATOR, history: [aResult({ date: -1 })] },
+    { generator: GENERATOR, test: aTest({ started: 1e300 }) },
+    { generator: GENERATOR, test: aTest({ deadline: -5 }) },
+    { generator: GENERATOR, test: aTest({ finished: 1e300 }) },
+    { generator: GENERATOR, log: [anAttempt({ date: 1e300 })] },
+    { generator: GENERATOR, log: [anAttempt({ target: 99 })] },
+    { generator: GENERATOR, log: [anAttempt({ seconds: 1e308 })] },
     { generator: GENERATOR, history: null },
     { generator: GENERATOR, history: [{ seed: 'abc' }] },
     { generator: GENERATOR, test: { seed: 'abc' } },
@@ -67,6 +104,32 @@ describe('saves', () => {
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
     expect(store).toEqual(saved);
+  });
+
+  it('keeps values at the edge of what is allowed', async () => {
+    const saved = {
+      generator: GENERATOR,
+      theme: null,
+      test: aTest({ seed: 'AbC123xyz987AbC123xyz98', started: 0, deadline: MAX_DATE, finished: MAX_DATE }),
+      history: [aResult({ seed: 'a', date: 0 }), aResult({ seed: 'z'.repeat(24), date: MAX_DATE })],
+      practice: aPractice({ seed: 'Q'.repeat(24), group: 'pointer', target: HARDEST, count: 0, right: 0, done: 0 }),
+      log: [anAttempt({ target: EASIEST, date: 0 })],
+    };
+    localStorage.setItem('raven', JSON.stringify(saved));
+    const { store } = await loadState();
+    expect(store).toEqual(saved);
+  });
+
+  it('keeps the newest HISTORY_LENGTH results from a longer saved history', async () => {
+    const history = Array.from({ length: 150 }, (_, i) => aResult({ date: 1000 - i }));
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history }));
+    const { HISTORY_LENGTH, store } = await loadState();
+    expect(store.history).toEqual(history.slice(0, HISTORY_LENGTH));
+  });
+
+  it('accepts the seeds the app makes itself', async () => {
+    const { isSeed, randomSeed } = await import('../src/lib/engine/rng.js');
+    for (let i = 0; i < 500; i++) expect(isSeed(randomSeed())).toBe(true);
   });
 
   it('keeps history and theme but drops work in progress from another generator', async () => {
