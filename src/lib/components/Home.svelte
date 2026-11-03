@@ -3,7 +3,7 @@
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
-  import { TEST_MINUTES, canReview, currentTheme, clearSavedWork, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { TEST_MINUTES, canReview, currentTheme, clearUnbuildable, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
   import { currentBenchmarks, firstTry } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
@@ -29,7 +29,7 @@
         expireTest();
       } catch (error) {
         console.error(error);
-        clearSavedWork();
+        clearUnbuildable('test');
       }
     }, 1000);
     return () => clearInterval(id);

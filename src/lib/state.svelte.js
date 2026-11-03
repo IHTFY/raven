@@ -215,10 +215,10 @@ export function expireTest() {
   if (isRunning(store.test) && Date.now() >= store.test.deadline) finishTest();
 }
 
-/** Drop the test and the practice in progress, which are rebuilt from their seeds, when a seed can't be built. */
-export function clearSavedWork() {
-  store.test = null;
-  store.practice = null;
+/** Drop the saved work whose seed can't be built: the practice if that's the screen that failed, otherwise the test. The other is kept. */
+export function clearUnbuildable(page) {
+  if (page === 'practice') store.practice = null;
+  else store.test = null;
 }
 
 // Practice gets harder after a right answer and easier after a miss.

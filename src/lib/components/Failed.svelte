@@ -1,12 +1,12 @@
 <script>
-  import { go } from '../router.svelte.js';
-  import { clearSavedWork } from '../state.svelte.js';
+  import { go, route } from '../router.svelte.js';
+  import { clearUnbuildable } from '../state.svelte.js';
 
   /** `reset` shows the screens again once the saved work is gone. */
   let { reset } = $props();
 
   function leave() {
-    clearSavedWork();
+    clearUnbuildable(route.path[0]);
     go();
     reset();
   }
