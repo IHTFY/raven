@@ -215,6 +215,12 @@ export function expireTest() {
   if (isRunning(store.test) && Date.now() >= store.test.deadline) finishTest();
 }
 
+/** Drop the test and the practice in progress, which are rebuilt from their seeds, when a seed can't be built. */
+export function clearSavedWork() {
+  store.test = null;
+  store.practice = null;
+}
+
 // Practice gets harder after a right answer and easier after a miss.
 const STEP_UP = 0.6;
 const STEP_DOWN = 0.9;

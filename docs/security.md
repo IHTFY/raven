@@ -21,13 +21,14 @@ Security stage: public. The repository is public, and https://iq.ihtfy.com serve
 ## Checked on 2026-10-24
 
 - A full security audit of the source, quick profile, at `e720871`: four survey passes, three reviewers (link and save input, ads, build and history), and a final review of what they covered. It was source-only: no code ran, and the live site wasn't probed. No confirmed findings and no open leads. Git history was searched again for secrets and personal details: clean.
-- Not yet checked: whether any link seed makes the puzzle generator fail or stall, which would leave the test screen broken for anyone opening that link (#14).
+- Whether any link seed makes the puzzle generator fail or stall was open then (#14); closed 2026-11-02, see below.
 - Saved seeds got a looser check than link seeds (#15). Only the visitor or same-origin script can write the save.
 
 ## Checked on 2026-11-02
 
 - A second source-only audit at `30ffadd`: 0 confirmed findings. Its follow-ups on saved input are closed (#15): saved seeds use the link-seed pattern, dates fall in a range the formatter can show, practice `group`, `target`, and counters are bounded, and saved history is cut to the retention limit on load.
 - `.gitignore` now covers `.env*`, key, and certificate files.
+- Generator failure (#14): 30,000 random link-shaped seeds (1 to 24 letters and digits) each built a full test with no failure; the slowest took 76 ms (a Node sweep on the maintainer's machine). `test/generate.test.js` keeps a smaller fixed sweep with a time bound, and a seed that ever fails goes into its `FAILED` list. If a build still throws, the app shows an error screen with a button that clears the saved test (or the practice, if that is what failed) and goes home, including when a test left running has run out of time at startup (`test/error-screen.test.js`).
 
 ## Open items
 

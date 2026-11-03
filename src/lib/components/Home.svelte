@@ -3,7 +3,7 @@
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
-  import { TEST_MINUTES, canReview, currentTheme, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { TEST_MINUTES, canReview, currentTheme, clearSavedWork, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
   import { currentBenchmarks, firstTry } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
@@ -24,7 +24,13 @@
   $effect(() => {
     const id = setInterval(() => {
       now = Date.now();
-      expireTest();
+      // A timer's error isn't caught by the screen boundary. A test that can't be scored can't be shown either, so drop it.
+      try {
+        expireTest();
+      } catch (error) {
+        console.error(error);
+        clearSavedWork();
+      }
     }, 1000);
     return () => clearInterval(id);
   });
