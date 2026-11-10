@@ -76,24 +76,29 @@ const isPractice = (p) =>
   isChoice(p.choice) &&
   (p.group === null || GROUPS.includes(p.group));
 
+/** The state in a saved value, keeping only the parts that match what the screens expect. */
+function parse(raw) {
+  const saved = JSON.parse(raw);
+  const state = blank();
+  // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
+  if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
+  // Screens and links find a past test by its date, so dates must be unique.
+  if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
+    state.history = saved.history.slice(0, HISTORY_LENGTH);
+  }
+  if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log.slice(0, LOG_LENGTH);
+  // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
+  if (saved?.generator === GENERATOR) {
+    // Tests started before times were kept count from zero.
+    if (isTest(saved.test)) state.test = { ...saved.test, times: saved.test.times ?? Array(TEST_LENGTH).fill(0) };
+    if (isPractice(saved.practice)) state.practice = saved.practice;
+  }
+  return state;
+}
+
 function load() {
   try {
-    const saved = JSON.parse(localStorage.getItem(KEY));
-    const state = blank();
-    // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
-    if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
-    // Screens and links find a past test by its date, so dates must be unique.
-    if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
-      state.history = saved.history.slice(0, HISTORY_LENGTH);
-    }
-    if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log.slice(0, LOG_LENGTH);
-    // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
-    if (saved?.generator === GENERATOR) {
-      // Tests started before times were kept count from zero.
-      if (isTest(saved.test)) state.test = { ...saved.test, times: saved.test.times ?? Array(TEST_LENGTH).fill(0) };
-      if (isPractice(saved.practice)) state.practice = saved.practice;
-    }
-    return state;
+    return parse(localStorage.getItem(KEY));
   } catch {
     // Unreadable or blocked storage: start over rather than fail to open.
     return blank();
@@ -111,6 +116,37 @@ $effect.root(() => {
       // Private browsing can block storage; the app still works for this visit.
     }
   });
+});
+
+/** Both lists, newest first, with each entry once. Entries of `keep` win when two share a key. */
+function union(keep, other, keyOf, limit) {
+  const seen = new Set(keep.map(keyOf));
+  return [...keep, ...other.filter((x) => !seen.has(keyOf(x)))].sort((a, b) => b.date - a.date).slice(0, limit);
+}
+
+/** Take in what another tab saved, so this tab's next save doesn't erase it. */
+function takeFromOtherTab(raw) {
+  let other;
+  try {
+    other = parse(raw);
+  } catch {
+    return;
+  }
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const history = union(store.history, other.history, (h) => h.date, HISTORY_LENGTH);
+  if (!same(history, store.history)) store.history = history;
+  const log = union(store.log, other.log, (a) => JSON.stringify(a), LOG_LENGTH);
+  if (!same(log, store.log)) store.log = log;
+  if (other.theme && other.theme !== store.theme) store.theme = other.theme;
+  // Work in progress here stays, unless it is the same test or practice the other tab moved on.
+  const mine = store.test;
+  const theirs = other.test;
+  if (theirs && !same(mine, theirs) && (!isRunning(mine) || (mine.seed === theirs.seed && mine.started === theirs.started && !(mine.finished && !theirs.finished)))) store.test = theirs;
+  if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
+}
+
+addEventListener('storage', (event) => {
+  if (event.storageArea === localStorage && event.key === KEY && event.newValue) takeFromOtherTab(event.newValue);
 });
 
 const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);
