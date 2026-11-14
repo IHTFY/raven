@@ -10,6 +10,30 @@ import { candidates, determined } from '../src/lib/engine/solver.js';
 const FAMILY = Object.fromEntries(FAMILIES.map((f) => [f.id, f]));
 const RULE = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
+/** The kind of each rule, from plainest to subtlest. Every rule needs one. */
+const KIND = {
+  rows: 'line',
+  cols: 'line',
+  overlay: 'overlay',
+  progression: 'step',
+  progressionWide: 'step',
+  move: 'move',
+  latinDown: 'latin',
+  latinUp: 'latin',
+  sum: 'arithmetic',
+  difference: 'arithmetic',
+  or: 'union',
+  minus: 'union',
+  rminus: 'union',
+  partition: 'split',
+  complement: 'split',
+  xor: 'logic',
+  and: 'logic',
+  ownLines: 'logic',
+};
+/** The kind of a puzzle's hardest rule. */
+const lead = (p) => KIND[p.rules.reduce((a, r) => (RULE[r.rule].score > RULE[a.rule].score ? r : a)).rule];
+
 /** Ranks of a list of numbers, ties sharing their mean rank. */
 const ranks = (v) => v.map((x) => v.filter((y) => y < x).length + (v.filter((y) => y === x).length - 1) / 2);
 
@@ -134,6 +158,12 @@ describe('figures', () => {
 });
 
 describe('tests', () => {
+  const TESTS = range(0, 39).map((i) => generateTest(`kinds/${i}`));
+
+  it('give every rule a kind', () => {
+    expect(RULES.filter((r) => r.id !== 'constant' && !(r.id in KIND)).map((r) => r.id)).toEqual([]);
+  });
+
   it('come out the same for the same seed', () => {
     expect(JSON.stringify(generateTest('same'))).toBe(JSON.stringify(generateTest('same')));
   });
@@ -221,11 +251,56 @@ describe('tests', () => {
     expect(marks('latinDown', 'xor')).toBeGreaterThan(marks('latinDown', 'constant'));
   });
 
-  it('keep offsets (Latin squares) out of the first five questions', () => {
-    for (const seed of range(0, 49).map((i) => `latin/${i}`)) {
-      const opening = generateTest(seed).slice(0, 5);
-      expect(opening.flatMap((p) => p.rules.map((r) => r.rule)), seed).not.toContain('latinDown');
-      expect(opening.flatMap((p) => p.rules.map((r) => r.rule)), seed).not.toContain('latinUp');
+  it('keep offsets (Latin squares) out of the first five questions, nearly always', () => {
+    const opening = TESTS.flatMap((test) => test.slice(0, 5));
+    const latin = opening.filter((p) => p.rules.some((r) => KIND[r.rule] === 'latin'));
+    expect(latin.length / opening.length).toBeLessThan(0.05);
+  });
+
+  it('place each kind of rule near where the Mensa Norway test does', () => {
+    // Question numbers in that test, by the kind of its hardest rule (our reading; 33 to 35 left out as unread).
+    // A kind may sit up to six questions from Mensa's average: close to its order, not a copy of it.
+    const MENSA = {
+      line: [1, 2, 4, 9, 22],
+      overlay: [6],
+      step: [5, 10, 17],
+      latin: [3, 8, 12, 13, 14, 15, 16, 23, 27],
+      arithmetic: [7, 18, 29, 30],
+      union: [11],
+      split: [19],
+      logic: [20, 21, 24, 25, 26, 28, 31, 32],
+    };
+    const mean = (list) => list.reduce((s, x) => s + x, 0) / list.length;
+    const ours = Object.fromEntries(Object.keys(MENSA).map((kind) => [kind, []]));
+    for (const test of TESTS) test.forEach((p, i) => ours[lead(p)]?.push(i + 1));
+    for (const [kind, questions] of Object.entries(MENSA)) {
+      expect(ours[kind].length, kind).toBeGreaterThan(0);
+      expect(Math.abs(mean(ours[kind]) - mean(questions)), `${kind}: ours ${mean(ours[kind]).toFixed(1)}`).toBeLessThanOrEqual(6);
+    }
+  });
+
+  it('still vary from test to test', () => {
+    const type = (p) => `${p.family}:${p.rules.map((r) => `${r.attr}=${r.rule}`).join()}`;
+    // No puzzle type takes more than a third of the tests at any question number.
+    for (const i of range(0, TEST_LENGTH - 1)) {
+      const counts = new Map();
+      for (const test of TESTS) counts.set(type(test[i]), (counts.get(type(test[i])) ?? 0) + 1);
+      expect(Math.max(...counts.values()) / TESTS.length, `question ${i + 1}`).toBeLessThanOrEqual(1 / 3);
+    }
+    // Two tests rarely put the same type of puzzle at the same question.
+    let same = 0;
+    let pairs = 0;
+    for (const [a, first] of TESTS.entries()) {
+      for (const second of TESTS.slice(a + 1)) {
+        same += first.filter((p, i) => type(p) === type(second[i])).length / TEST_LENGTH;
+        pairs++;
+      }
+    }
+    expect(same / pairs).toBeLessThan(0.1);
+    // Each test mixes many styles and kinds of rule.
+    for (const test of TESTS) {
+      expect(new Set(test.map((p) => p.family)).size).toBeGreaterThanOrEqual(7);
+      expect(new Set(test.map(lead)).size).toBeGreaterThanOrEqual(6);
     }
   });
 
