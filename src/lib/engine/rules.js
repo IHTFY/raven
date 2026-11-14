@@ -1,6 +1,9 @@
 /**
  * Generator rules. Each rule fills the 3×3 grid for one attribute and can
- * explain itself in a sentence. Scores feed the difficulty estimate.
+ * explain itself in a sentence. Scores feed the difficulty estimate and
+ * rise in the order the Mensa Norway test brings rules in: a value kept along
+ * each row or column, then steps and turns, then offsets (Latin squares),
+ * then set logic such as XOR and AND.
  *
  * make(attr, rng) returns { grid, params } or null when a random draw is
  * unusable; the caller retries. Whether the result has a unique answer is
@@ -102,11 +105,11 @@ function arithmetic(f) {
 }
 
 const SET_OPS = {
-  xor: { score: 6, op: (a, b) => a ^ b, text: (l) => `shows the ${l} found in exactly one of the first two (shared ones cancel out)` },
-  or: { score: 3, op: (a, b) => a | b, text: (l) => `shows all the ${l} from the first two together` },
-  and: { score: 5.5, op: (a, b) => a & b, text: (l) => `shows only the ${l} that the first two share` },
-  minus: { score: 3, op: (a, b) => a & ~b, text: (l) => `shows the first picture's ${l}, minus any that are in the second` },
-  rminus: { score: 3, op: (a, b) => b & ~a, text: (l) => `shows the second picture's ${l}, minus any that are in the first` },
+  xor: { score: 5, op: (a, b) => a ^ b, text: (l) => `shows the ${l} found in exactly one of the first two (shared ones cancel out)` },
+  or: { score: 2.5, op: (a, b) => a | b, text: (l) => `shows all the ${l} from the first two together` },
+  and: { score: 4.5, op: (a, b) => a & b, text: (l) => `shows only the ${l} that the first two share` },
+  minus: { score: 2.5, op: (a, b) => a & ~b, text: (l) => `shows the first picture's ${l}, minus any that are in the second` },
+  rminus: { score: 2.5, op: (a, b) => b & ~a, text: (l) => `shows the second picture's ${l}, minus any that are in the first` },
 };
 
 const setOp = ([id, { score, op, text }]) => ({
@@ -205,35 +208,35 @@ export const RULES = [
   },
   {
     id: 'rows',
-    score: 0.75,
+    score: 0.5,
     applies: hasThree,
     make: constantLines('rows'),
     explain: (attr) => `Each row keeps one ${thing(attr)}.`,
   },
   {
     id: 'cols',
-    score: 0.75,
+    score: 0.5,
     applies: hasThree,
     make: constantLines('cols'),
     explain: (attr) => `Each column keeps one ${thing(attr)}.`,
   },
   {
     id: 'latinDown',
-    score: 1.5,
+    score: 3,
     applies: hasThree,
     make: latin(-1),
     explain: (attr) => `Every row and column has the same three ${things(attr)}, and matching ones line up along ↘ diagonals.`,
   },
   {
     id: 'latinUp',
-    score: 1.5,
+    score: 3,
     applies: hasThree,
     make: latin(1),
     explain: (attr) => `Every row and column has the same three ${things(attr)}, and matching ones line up along ↙ diagonals.`,
   },
   ...[false, true].map((wide) => ({
     id: wide ? 'progressionWide' : 'progression',
-    score: wide ? 2.25 : 2,
+    score: wide ? 1.5 : 1.25,
     applies: canProgress(wide),
     make: (attr, rng) => progression(attr, rng, wide),
     explain: (attr, { s, t }) =>
@@ -254,14 +257,14 @@ export const RULES = [
   ...Object.entries(SET_OPS).map(setOp),
   {
     id: 'partition',
-    score: 5,
+    score: 4.5,
     applies: isSet(3),
     make: partition(false),
     explain: (attr, { dir }) => `Across each ${LINE[dir]}, each of the ${attr.label} shows up in exactly one of the three pictures.`,
   },
   {
     id: 'complement',
-    score: 5.5,
+    score: 5,
     applies: isSet(3),
     make: partition(true),
     explain: (attr, { dir }) => `Across each ${LINE[dir]}, each of the ${attr.label} shows up in exactly two of the three pictures.`,
@@ -275,7 +278,7 @@ export const RULES = [
   },
   {
     id: 'ownLines',
-    score: 5.5,
+    score: 5,
     applies: isSet(4),
     make: ownLines,
     explain: (attr) =>
@@ -283,7 +286,7 @@ export const RULES = [
   },
   {
     id: 'overlay',
-    score: 1.5,
+    score: 1,
     applies: isSet(4),
     make: overlay,
     explain: (attr) => `Each picture's ${attr.label} combine a group set by its row with a separate group set by its column.`,
