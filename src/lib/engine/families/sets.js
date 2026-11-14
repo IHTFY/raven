@@ -122,4 +122,84 @@ export const parts = {
   render: (c) => PARTS.flatMap((part, i) => (has(c.parts, i) ? part() : [])),
 };
 
-export const sets = [tiles, marks, lines, spokes, parts];
+/** Twelve half-length segments joining the nine nodes of a lattice; `node(i)` places node i (row-major). */
+function lattice(id, name, node) {
+  const nodes = range(0, 8).map(node);
+  const pairs = [[0, 1], [1, 2], [3, 4], [4, 5], [6, 7], [7, 8], [0, 3], [3, 6], [1, 4], [4, 7], [2, 5], [5, 8]];
+  const segments = pairs.map(([a, b]) => [nodes[a], nodes[b]]);
+  return {
+    id,
+    group: 'lattice',
+    name,
+    base: 1.5,
+    attrs: [
+      set('segments', 'lines', 12, {
+        geometry: { transforms: squareSymmetries(segments), motions: ['turn90', 'turn270'] },
+        density: [3, 6],
+      }),
+    ],
+    render: (c) => [
+      ...nodes.map(([x, y]) => circle(x, y, 2)),
+      ...segments.filter((_, i) => has(c.segments, i)).map((s) => line(s, 4)),
+    ],
+  };
+}
+
+/** A square split into four, as in Mensa Norway item 21. */
+export const grid = lattice('grid', 'Grid', (i) => [A + (M - A) * (i % 3), A + (M - A) * Math.floor(i / 3)]);
+
+/** The same lattice stood on a corner, as in item 28. */
+export const diamond = lattice('diamond', 'Diamond', (i) => {
+  const [u, v] = [(i % 3) - 1, Math.floor(i / 3) - 1];
+  return [50 + 21 * (u - v), 50 + 21 * (u + v)];
+});
+
+// Spoke k and dot k both point k·45° clockwise from straight up.
+const AROUND = regular(8, 1, 0, 0);
+const SHORT_SPOKES = AROUND.map(([x, y]) => [[50 + 8 * x, 50 + 8 * y], [50 + 28 * x, 50 + 28 * y]]);
+const RIM_DOTS = AROUND.map(([x, y]) => [50 + 39 * x, 50 + 39 * y]);
+const wheelGeometry = (slots) => ({
+  transforms: octagonSymmetries(slots),
+  motions: ['turn45', 'turn90', 'turn135', 'turn225', 'turn270', 'turn315'],
+});
+
+/** Spokes and rim dots, two sets in one picture, as in item 26. */
+export const wheel = {
+  id: 'wheel',
+  group: 'wheel',
+  name: 'Wheel',
+  base: 1.5,
+  attrs: [
+    set('spokes', 'spokes', 8, { geometry: wheelGeometry(SHORT_SPOKES), density: [2, 4] }),
+    set('rim', 'dots', 8, { geometry: wheelGeometry(RIM_DOTS.map((p) => [p])), density: [2, 4] }),
+  ],
+  render: (c) => [
+    circle(50, 50, 4),
+    ...SHORT_SPOKES.filter((_, i) => has(c.spokes, i)).map((s) => line(s, 4)),
+    ...RIM_DOTS.filter((_, i) => has(c.rim, i)).map(([x, y]) => circle(x, y, 4)),
+  ],
+};
+
+const BAR_X = [20, 40, 60, 80];
+const ABOVE = BAR_X.map((x) => [x, 34]);
+const BELOW = BAR_X.map((x) => [x, 66]);
+const barGeometry = (slots) => ({ transforms: squareSymmetries(slots.map((p) => [p])), motions: [] });
+
+/** A bar with dots above it and squares below, each set changing on its own, as in item 22. */
+export const bar = {
+  id: 'bar',
+  group: 'bar',
+  name: 'Bar',
+  base: 1.5,
+  attrs: [
+    set('above', 'dots', 4, { geometry: barGeometry(ABOVE), density: [1, 3] }),
+    set('below', 'squares', 4, { geometry: barGeometry(BELOW), density: [1, 3] }),
+  ],
+  render: (c) => [
+    poly([[10, 48], [90, 48], [90, 52], [10, 52]], INK, 0, NONE),
+    ...ABOVE.filter((_, i) => has(c.above, i)).map(([x, y]) => circle(x, y, 6)),
+    ...BELOW.filter((_, i) => has(c.below, i)).map((p) => poly(square(p, 6), INK, 0, NONE)),
+  ],
+};
+
+export const sets = [tiles, marks, lines, spokes, parts, grid, diamond, wheel, bar];

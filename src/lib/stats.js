@@ -43,6 +43,10 @@ export const FAMILY_NAMES = {
   lines: 'Lines',
   spokes: 'Spokes',
   parts: 'Parts',
+  grid: 'Grids',
+  diamond: 'Diamonds',
+  wheel: 'Wheels',
+  bar: 'Bars',
 };
 
 /** "tiles:or+rows" → { family: 'tiles', rules: ['or', 'rows'] }. */
