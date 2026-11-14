@@ -18,6 +18,9 @@ export const BENCHMARKS = [
   { id: 'a6', name: 'Benchmark A', seed: 'benchmarka', generator: 6, fingerprint: 'eff8d1d0' },
   { id: 'b6', name: 'Benchmark B', seed: 'benchmarkb', generator: 6, fingerprint: '3d1b7c87' },
   { id: 'c6', name: 'Benchmark C', seed: 'benchmarkc', generator: 6, fingerprint: '55dd248d' },
+  { id: 'a7', name: 'Benchmark A', seed: 'benchmarka', generator: 7, fingerprint: '34800f7b' },
+  { id: 'b7', name: 'Benchmark B', seed: 'benchmarkb', generator: 7, fingerprint: '928f537e' },
+  { id: 'c7', name: 'Benchmark C', seed: 'benchmarkc', generator: 7, fingerprint: '4efc7510' },
 ];
 
 /** Benchmarks this version of the app can build. */

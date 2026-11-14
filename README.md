@@ -18,7 +18,7 @@ Inspired by [Olav Hoel Dørum's test](https://test.mensa.no/) and the [Sandia Ma
 
 Everything lives in `src/lib/engine`. A puzzle is a family of pictures plus one rule for each of the family's attributes.
 
-- **Families** (`families/`) say what a picture is made of. Some have a few attributes with a handful of values each: shapes (shape, size, shading), counts, tallies, nested shapes, umbrellas, angles, and clocks. Others are sets of parts that can each be on or off: tiles, marks, lines, spokes, and parts.
+- **Families** (`families/`) say what a picture is made of. Some have a few attributes with a handful of values each: shapes (shape, size, shading), counts, tallies, nested shapes, umbrellas, angles, and clocks. Others are sets of parts that can each be on or off: tiles, marks, lines, spokes, parts, grids and diamonds (half-length lines on a lattice), wheels (spokes and rim dots), and bars (dots above, squares below).
 - **Rules** (`rules.js`) fill the grid for one attribute:
   - the same everywhere, or the same along each row or column;
   - each value once per row and column, with each row shifted one place, so the values run along the diagonals going down or up;
