@@ -14,7 +14,7 @@ afterEach(() => {
 
 it('starts the next puzzle’s demo from its first step', () => {
   // Both explain their "tiles" attribute: an overlay demo with 6 steps, then an xor demo with 3.
-  const puzzles = [at(5), at(14)];
+  const puzzles = [at(5), at(52)];
   expect(puzzles.map((p) => p.rules.map((r) => `${r.attr}:${r.rule}`))).toEqual([['tiles:overlay'], ['tiles:xor']]);
 
   app = mount(Review, { target: document.body, props: { puzzles, answers: [null, null], index: 0 } });

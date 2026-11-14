@@ -13,21 +13,28 @@ import { RULES } from './rules.js';
 import { determined } from './solver.js';
 
 /** Bump whenever a change makes the same seed build different puzzles. */
-export const GENERATOR = 4;
+export const GENERATOR = 5;
 export const TEST_LENGTH = 35;
 /** The families' groups, which practice can ask to avoid. */
 export const GROUPS = [...new Set(FAMILIES.map((f) => f.group))];
 const TOLERANCE = 1.25;
-/** Each extra changing attribute is one more thing to track. */
-const PER_ATTRIBUTE = 0.25;
+/**
+ * The hardest rule in a puzzle sets most of its difficulty; each other
+ * changing attribute adds this share of its own rule's score. Fitted to the
+ * order of the Mensa Norway test, where a second rule beside a hard one adds
+ * less than the two would apart.
+ */
+const OTHERS = 0.25;
 
 export const EASIEST = 1;
 export const HARDEST = 8.5;
 const target = (i) => EASIEST + ((HARDEST - EASIEST) * i) / (TEST_LENGTH - 1);
 
 export function planScore(family, rules) {
-  const varying = rules.filter((rule) => rule.id !== 'constant');
-  return family.base + varying.reduce((s, rule) => s + rule.score, 0) + PER_ATTRIBUTE * (varying.length - 1);
+  const scores = rules.filter((rule) => rule.id !== 'constant').map((rule) => rule.score);
+  const hardest = Math.max(...scores);
+  const rest = scores.reduce((s, x) => s + x, 0) - hardest;
+  return family.base + hardest + OTHERS * rest;
 }
 
 /** Every way to give each attribute a rule, leaving at least one attribute changing. */

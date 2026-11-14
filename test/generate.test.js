@@ -179,18 +179,24 @@ describe('tests', () => {
       [2, 'nested', { outer: 'rows', inner: 'cols' }],
       [3, 'nested', { outer: 'rows', inner: 'latinDown' }],
       [4, 'arrow', { dir: 'rows', tail: 'cols' }],
+      [5, 'arrow', { dir: 'progression', tail: 'rows' }],
       [6, 'tiles', { tiles: 'overlay' }],
       [8, 'shapes', { shape: 'latinDown', fill: 'latinUp' }],
       [9, 'marks', { boxes: 'cols', dots: 'rows' }],
       [10, 'kite', { dir: 'progressionWide', half: 'rows' }],
       [11, 'parts', { parts: 'rminus' }],
+      [12, 'kite', { dir: 'progressionWide', half: 'latinDown' }],
       [13, 'shapes', { shape: 'latinDown', fill: 'latinDown' }],
       [15, 'chevron', { dir: 'progressionWide', dots: 'latinDown' }],
       [16, 'umbrella', { dir: 'progressionWide', fill: 'latinDown' }],
       [19, 'parts', { parts: 'partition' }],
       [20, 'lines', { segments: 'xor' }],
+      [21, 'lines', { segments: 'xor' }],
       [24, 'spokes', { spokes: 'xor' }],
+      [25, 'marks', { dots: 'and' }],
+      [26, 'marks', { boxes: 'xor', dots: 'and' }],
       [27, 'vee', { dir: 'progressionWide', angle: 'latinDown' }],
+      [28, 'lines', { segments: 'xor' }],
       [31, 'tiles', { tiles: 'xor' }],
     ];
     const scores = REFERENCE.map(([, id, rules]) => {
@@ -200,6 +206,27 @@ describe('tests', () => {
       return planScore(family, family.attrs.map((attr) => RULE[rules[attr.name] ?? 'constant']));
     });
     expect(rankCorrelation(REFERENCE.map(([q]) => q), scores)).toBeGreaterThan(0.85);
+  });
+
+  it('score rules from plain to subtle: lines, then steps, then offsets, then set logic', () => {
+    const top = (ids) => Math.max(...ids.map((id) => RULE[id].score));
+    const bottom = (ids) => Math.min(...ids.map((id) => RULE[id].score));
+    const LATIN = ['latinDown', 'latinUp'];
+    expect(top(['rows', 'cols', 'overlay'])).toBeLessThan(bottom(['progression', 'progressionWide']));
+    expect(top(['progression', 'progressionWide'])).toBeLessThan(bottom(LATIN));
+    expect(top(LATIN)).toBeLessThan(bottom(['xor', 'and', 'partition', 'complement', 'ownLines']));
+    // Set logic on one attribute and an offset on another is harder than either alone.
+    const marks = (boxes, dots) => planScore(FAMILY.marks, [RULE[boxes], RULE[dots]]);
+    expect(marks('latinDown', 'xor')).toBeGreaterThan(marks('constant', 'xor'));
+    expect(marks('latinDown', 'xor')).toBeGreaterThan(marks('latinDown', 'constant'));
+  });
+
+  it('keep offsets (Latin squares) out of the first five questions', () => {
+    for (const seed of range(0, 49).map((i) => `latin/${i}`)) {
+      const opening = generateTest(seed).slice(0, 5);
+      expect(opening.flatMap((p) => p.rules.map((r) => r.rule)), seed).not.toContain('latinDown');
+      expect(opening.flatMap((p) => p.rules.map((r) => r.rule)), seed).not.toContain('latinUp');
+    }
   });
 
   it('generate quickly', () => {
