@@ -13,7 +13,7 @@ import { RULES } from './rules.js';
 import { determined } from './solver.js';
 
 /** Bump whenever a change makes the same seed build different puzzles. */
-export const GENERATOR = 5;
+export const GENERATOR = 6;
 export const TEST_LENGTH = 35;
 /** The families' groups, which practice can ask to avoid. */
 export const GROUPS = [...new Set(FAMILIES.map((f) => f.group))];

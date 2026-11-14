@@ -257,14 +257,14 @@ export const RULES = [
   ...Object.entries(SET_OPS).map(setOp),
   {
     id: 'partition',
-    score: 4.5,
+    score: 3.75,
     applies: isSet(3),
     make: partition(false),
     explain: (attr, { dir }) => `Across each ${LINE[dir]}, each of the ${attr.label} shows up in exactly one of the three pictures.`,
   },
   {
     id: 'complement',
-    score: 5,
+    score: 4.25,
     applies: isSet(3),
     make: partition(true),
     explain: (attr, { dir }) => `Across each ${LINE[dir]}, each of the ${attr.label} shows up in exactly two of the three pictures.`,
