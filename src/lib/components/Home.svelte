@@ -122,7 +122,7 @@
 
   <footer class="muted small">
     <p>Not a formal IQ test. Inspired by Mensa Norway's test and the Sandia Matrices.</p>
-    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/projects/">More games</a>{#if !hasAd} · <a href="https://ihtfy.com/privacy/">Privacy</a>{/if}</p>
+    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/projects/">More games</a>{#if !hasAd}{' · '}<a href="https://ihtfy.com/privacy/">Privacy</a>{/if}</p>
   </footer>
 
   <!-- Only once a game has finished in this tab: no ad on a first visit. -->

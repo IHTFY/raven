@@ -72,13 +72,11 @@ describe('screenAdSlot', () => {
     for (const screen of ['results', 'home', 'quiz', 'practice']) expect(ads.screenAdSlot(screen)).toBeNull();
   });
 
-  it('only sizes boxes the shared loader can fill, each with a size to fall back to', async () => {
+  it('only sizes boxes the shared loader can fill', async () => {
     const { ads } = await load();
     const loader = ['300x250', '320x50', '320x100', '160x600', '300x600', '728x90'];
-    for (const sizes of Object.values(ads.SCREEN_AD_SIZES)) {
-      expect(sizes.at(-1).query).toBe('all');
-      for (const { size } of sizes) if (size) expect(loader).toContain(size);
-    }
+    expect(ads.STACKED_AD_SIZES.length).toBeGreaterThan(1);
+    for (const size of ads.STACKED_AD_SIZES) expect(loader).toContain(size);
   });
 });
 
@@ -103,25 +101,98 @@ describe('the screens', () => {
   /** Makes `matchMedia` answer true for only the queries in `matching`. */
   const window_ = (...matching) =>
     vi.stubGlobal('matchMedia', (query) => ({
-      matches: matching.includes(query) || query === 'all',
+      matches: matching.includes(query),
       media: query,
       addEventListener() {},
       removeEventListener() {},
     }));
 
+  /**
+   * Fakes the layout (happy-dom has none): the block above an ad box ends `above` px down the window, a
+   * box adds its own height plus 80 px for the links and the label, and the window is `innerHeight` tall.
+   * Returns the box heights asked about, so a test can see no new size was tried after the first show.
+   */
+  function room({ above, innerHeight, innerWidth = 412 }) {
+    vi.stubGlobal('innerHeight', innerHeight);
+    vi.stubGlobal('innerWidth', innerWidth);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
+      if (this.localName !== 'aside') return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+      const box = this.querySelector('[data-ad-slot]');
+      const bottom = above + 80 + parseInt(box.style.height, 10);
+      const left = (innerWidth - parseInt(box.style.width, 10)) / 2;
+      return { top: above, left, right: innerWidth - left, bottom, width: innerWidth - 2 * left, height: bottom - above };
+    });
+  }
+
   it.each([
-    ['a short phone', [], '320x50'],
-    ['a phone 700 px tall', ['(min-height: 700px)'], '320x100'],
-    ['a phone 860 px tall', ['(min-height: 700px)', '(min-height: 860px)'], '300x250'],
-    ['a wide window', ['(min-width: 1000px) and (min-height: 500px)', '(min-height: 700px)'], '300x250'],
-  ])('sizes the Results box before any ad fills it, for %s', async (_, queries, size) => {
-    window_(...queries);
+    ['holds the largest box', 915, 520, '300x250'],
+    ['holds 320x100 but not 300x250', 640, 400, '320x100'],
+    ['holds only 320x50', 640, 470, '320x50'],
+  ])('sizes the Home box by the room left below the content: a window that %s', async (_, innerHeight, above, size) => {
+    room({ above, innerHeight });
+    const { Home, ads } = await load();
+    ads.noteGameFinished();
+    const [box] = show(Home);
+    expect(box.dataset.adSize).toBe(size);
+    expect(box.style.height).toBe(`${size.split('x')[1]}px`);
+  });
+
+  it.each([
+    ['a phone with room for the largest box', 915, 520, '300x250'],
+    ['a short phone', 640, 470, '320x50'],
+  ])('sizes the Results box by the room below the results, for %s', async (_, innerHeight, above, size) => {
+    window_();
+    room({ above, innerHeight });
     const { Results } = await finishedTest();
     const [box] = show(Results);
     expect(box.dataset.adSize).toBe(size);
     const [width, height] = size.split('x');
     expect(box.style.width).toBe(`${width}px`);
     expect(box.style.height).toBe(`${height}px`);
+  });
+
+  it('offers only the largest box beside the results on a wide window', async () => {
+    window_('(min-width: 1000px) and (min-height: 500px)');
+    room({ above: 100, innerHeight: 768, innerWidth: 1366 });
+    const { Results } = await finishedTest();
+    const [box] = show(Results);
+    expect(box.dataset.adSize).toBe('300x250');
+  });
+
+  it('puts no box on Home when even the smallest would end below the first screen', async () => {
+    room({ above: 520, innerHeight: 640 });
+    const { Home, ads } = await load();
+    ads.noteGameFinished();
+    expect(show(Home)).toHaveLength(0);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+  });
+
+  it('puts no box on Results when even the smallest would end below the first screen', async () => {
+    room({ above: 420, innerHeight: 412, innerWidth: 915 });
+    window_();
+    const { Results } = await finishedTest();
+    expect(show(Results)).toHaveLength(0);
+  });
+
+  it('keeps the size it picked when the window resizes, and hides the box while it no longer fits', async () => {
+    room({ above: 500, innerHeight: 915 });
+    const { Home, ads } = await load();
+    ads.noteGameFinished();
+    const [box] = show(Home);
+    const aside = box.closest('aside');
+    expect(box.dataset.adSize).toBe('300x250');
+    expect(aside.style.display).toBe('');
+    vi.stubGlobal('innerHeight', 640);
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(document.querySelector('[data-ad-slot]')).toBe(box);
+    expect(box.dataset.adSize).toBe('300x250');
+    expect(aside.style.display).toBe('none');
+    vi.stubGlobal('innerHeight', 915);
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(aside.style.display).toBe('');
+    expect(box.dataset.adSize).toBe('300x250');
   });
 
   it('puts no box on a window too narrow to hold one', async () => {
@@ -132,6 +203,12 @@ describe('the screens', () => {
     document.body.innerHTML = '';
     ads.noteGameFinished();
     expect(show(Home)).toHaveLength(0);
+  });
+
+  it('spaces the footer links evenly, Privacy included, on a Home without an ad', async () => {
+    const { Home } = await load();
+    show(Home);
+    expect(document.querySelector('footer p:last-child').textContent).toBe('IHTFY · Source · More games · Privacy');
   });
 
   it('puts no box on Home in a fresh tab, and one after Results was shown', async () => {
