@@ -34,9 +34,23 @@
   let aside = $state();
   let box = $state();
 
+  // The aside stretches across its screen, so the box's own bounds are checked too: a box wider than the
+  // room overflows the aside and the window, and sits inside the aside's padding when it fits.
   const fits = () => {
     const { bottom, left, right } = aside.getBoundingClientRect();
-    return bottom <= innerHeight && left >= 0 && right <= innerWidth;
+    const { paddingLeft, paddingRight } = getComputedStyle(aside);
+    const inner = {
+      left: left + (parseFloat(paddingLeft) || 0),
+      right: right - (parseFloat(paddingRight) || 0),
+    };
+    const own = box.getBoundingClientRect();
+    return (
+      bottom <= innerHeight &&
+      left >= 0 &&
+      right <= innerWidth &&
+      own.left >= Math.max(0, inner.left) &&
+      own.right <= Math.min(innerWidth, inner.right)
+    );
   };
 
   let picked = false;

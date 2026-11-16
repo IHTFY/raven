@@ -110,18 +110,26 @@ describe('the screens', () => {
   /**
    * Fakes the layout (happy-dom has none): the block above an ad box ends `above` px down the window, a
    * box adds its own height plus 80 px for the links and the label, and the window is `innerHeight` tall.
-   * Returns the box heights asked about, so a test can see no new size was tried after the first show.
+   * The aside stretches across the window, as in the page; the box has a fixed width and is centered in it,
+   * so a box wider than the window overflows both sides. `padding` is the aside's side padding.
+   * Returns nothing; each test checks the sizes the page picked.
    */
-  function room({ above, innerHeight, innerWidth = 412 }) {
+  function room({ above, innerHeight, innerWidth = 412, padding = 0 }) {
     vi.stubGlobal('innerHeight', innerHeight);
     vi.stubGlobal('innerWidth', innerWidth);
+    const none = { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
-      if (this.localName !== 'aside') return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
-      const box = this.querySelector('[data-ad-slot]');
+      const aside = this.localName === 'aside' ? this : this.closest('aside');
+      if (!aside) return none;
+      const box = aside.querySelector('[data-ad-slot]');
       const bottom = above + 80 + parseInt(box.style.height, 10);
-      const left = (innerWidth - parseInt(box.style.width, 10)) / 2;
-      return { top: above, left, right: innerWidth - left, bottom, width: innerWidth - 2 * left, height: bottom - above };
+      if (this === aside) return { top: above, left: 0, right: innerWidth, bottom, width: innerWidth, height: bottom - above };
+      if (this !== box) return none;
+      const width = parseInt(box.style.width, 10);
+      const left = (innerWidth - width) / 2;
+      return { top: bottom - parseInt(box.style.height, 10), left, right: left + width, bottom, width, height: parseInt(box.style.height, 10) };
     });
+    vi.stubGlobal('getComputedStyle', () => ({ paddingLeft: `${padding}px`, paddingRight: `${padding}px` }));
   }
 
   it.each([
@@ -200,6 +208,31 @@ describe('the screens', () => {
     dispatchEvent(new Event('resize'));
     svelte.flushSync();
     expect(footer()).toBe('IHTFY · Source · More games');
+  });
+
+  it('hides the Results box when a resize leaves the window narrower than the box and its padding', async () => {
+    window_();
+    room({ above: 300, innerHeight: 915, innerWidth: 412, padding: 16 });
+    const { Results } = await finishedTest();
+    const [box] = show(Results);
+    const aside = box.closest('aside');
+    expect(box.dataset.adSize).toBe('300x250');
+    expect(aside.style.display).toBe('');
+    // 330 px: the box still lies inside the window, but not inside the aside's padded content (298 px).
+    room({ above: 300, innerHeight: 915, innerWidth: 330, padding: 16 });
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(aside.style.display).toBe('none');
+    // 290 px: the box overflows the window itself.
+    room({ above: 300, innerHeight: 915, innerWidth: 290, padding: 0 });
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(aside.style.display).toBe('none');
+    room({ above: 300, innerHeight: 915, innerWidth: 412, padding: 16 });
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(aside.style.display).toBe('');
+    expect(box.dataset.adSize).toBe('300x250');
   });
 
   it('puts no box on Results when even the smallest would end below the first screen', async () => {
