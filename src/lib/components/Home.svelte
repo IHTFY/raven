@@ -14,6 +14,14 @@
 
   const running = $derived(isRunning(store.test) ? store.test : null);
   const theme = $derived(currentTheme());
+  let themeToggle;
+
+  function toggleFromSnapshot(event) {
+    // The transition snapshot sends clicks to the root instead of the covered button.
+    if (event.target !== document.documentElement) return;
+    const { left, right, top, bottom } = themeToggle.getBoundingClientRect();
+    if (event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom) themeToggle.click();
+  }
 
   // With an ad on the screen, the logo and the older tests make room for it.
   const hasAd = screenAdSlot('home') !== null;
@@ -59,9 +67,11 @@
   }
 </script>
 
+<svelte:document onclick={toggleFromSnapshot} />
+
 <main>
   <header>
-    <button class="icon-btn" onclick={toggleTheme} aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'}>
+    <button bind:this={themeToggle} class="icon-btn" onclick={toggleTheme} aria-label={theme === 'dark' ? 'Use light theme' : 'Use dark theme'}>
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
     </button>
   </header>

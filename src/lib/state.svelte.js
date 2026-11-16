@@ -177,12 +177,20 @@ const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);
 /** The theme on screen: your choice, or the system's. */
 export const currentTheme = () => store.theme ?? (prefersLight.current ? 'light' : 'dark');
 
+let themeTransition = null;
+
 export function toggleTheme() {
-  const next = currentTheme() === 'dark' ? 'light' : 'dark';
   // The view transition snapshots the page once this returns, so the new theme must already be on screen.
-  const apply = () => flushSync(() => (store.theme = next));
-  if (document.startViewTransition && !prefersReducedMotion.current) document.startViewTransition(apply);
-  else apply();
+  const apply = () => flushSync(() => (store.theme = currentTheme() === 'dark' ? 'light' : 'dark'));
+  if (themeTransition) {
+    themeTransition.skipTransition();
+    apply();
+  } else if (document.startViewTransition && !prefersReducedMotion.current) {
+    themeTransition = document.startViewTransition(apply);
+    themeTransition.finished.then(() => {
+      themeTransition = null;
+    });
+  } else apply();
 }
 
 const tests = new Map();
