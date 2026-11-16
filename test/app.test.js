@@ -63,13 +63,6 @@ describe('saves', () => {
     { generator: GENERATOR, history: [{ seed: 'xyz', score: -1, total: 2, seconds: 5, date: 9 }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 3, total: 2, seconds: 5, date: 9 }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 0, total: 0, seconds: 5, date: 9 }] },
-    {
-      generator: GENERATOR,
-      history: [
-        { seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9 },
-        { seed: 'abc', score: 1, total: 2, seconds: 5, date: 9 },
-      ],
-    },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, times: [1, -1] }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, outcomes: 'rx' }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, kinds: ['a', 3] }] },
@@ -82,6 +75,45 @@ describe('saves', () => {
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
     expect(store).toEqual({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
+  });
+
+  it('keeps the valid results and practice answers next to invalid ones', async () => {
+    const history = [aResult({ date: 9 }), {}, aResult({ date: 8, score: -1 }), aResult({ date: 7 })];
+    const log = [anAttempt({ date: 2 }), anAttempt({ seconds: -1 }), anAttempt({ date: 1 })];
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history, log }));
+    const { store } = await loadState();
+    expect(store.history).toEqual([aResult({ date: 9 }), aResult({ date: 7 })]);
+    expect(store.log).toEqual([anAttempt({ date: 2 }), anAttempt({ date: 1 })]);
+  });
+
+  it('keeps the first of two results with the same date, since screens find a past test by its date', async () => {
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history: [aResult({ seed: 'xyz' }), aResult({ seed: 'abc' })] }));
+    const { store } = await loadState();
+    expect(store.history).toEqual([aResult({ seed: 'xyz' })]);
+  });
+
+  it('drops a saved test whose deadline is before its start', async () => {
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, test: aTest({ started: 2000, deadline: 1000 }) }));
+    const { expireTest, store } = await loadState();
+    expireTest();
+    expect(store.test).toBe(null);
+    expect(store.history).toEqual([]);
+  });
+
+  it('caps saved test times, so the statistics stay finite', async () => {
+    const history = [aResult({ seconds: 1e308, date: 2 }), aResult({ seconds: 1e308, date: 1 }), aResult({ seconds: -5, date: 0 })];
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history }));
+    const { store } = await loadState();
+    const { summary } = await import('../src/lib/stats.js');
+    expect(store.history.map((h) => h.seconds)).toEqual([86400, 86400, 0]);
+    expect(summary(store.history.slice(0, 2)).seconds).toBe(86400);
+  });
+
+  it('drops a saved result with a puzzle time longer than a day', async () => {
+    const history = [aResult({ date: 2, times: [1e308, 1e308] }), aResult({ date: 1 })];
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history }));
+    const { store } = await loadState();
+    expect(store.history).toEqual([aResult({ date: 1 })]);
   });
 
   it('keeps a valid save', async () => {
@@ -205,6 +237,16 @@ describe('statistics records', () => {
     expect(h.times.slice(0, 4)).toEqual([3.3, 0, 0, 4]);
     expect(h.outcomes).toBe('r' + '-'.repeat(TEST_LENGTH - 1));
     expect(h.kinds[0]).toMatch(/^[a-z]+:[a-zA-Z+]+$/);
+  });
+
+  it('never records a negative time, as when the clock is set back during a test', async () => {
+    vi.useFakeTimers();
+    const { finishTest, startTest, store } = await loadState();
+    vi.setSystemTime(10_000_000);
+    startTest('abc');
+    vi.setSystemTime(5_000_000);
+    finishTest();
+    expect(store.history[0].seconds).toBe(0);
   });
 
   it('doesn’t count time past the deadline, as when a sleeping tab wakes up late', async () => {
