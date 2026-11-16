@@ -11,7 +11,7 @@
   import Toast from './Toast.svelte';
 
   startPractice();
-  const p = store.practice;
+  const p = $derived(store.practice);
 
   const puzzle = $derived(practicePuzzle(p));
   const revealed = $derived(p.choice != null);
