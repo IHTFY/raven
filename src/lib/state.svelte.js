@@ -229,9 +229,9 @@ export function answerTest(k) {
 }
 
 /** Add time spent looking at a puzzle of the running test. */
-export function spendTime(i, seconds) {
+export function spendTime(i, seconds, session = store.test) {
   const test = store.test;
-  if (!isRunning(test)) return;
+  if (!isRunning(test) || test.seed !== session.seed || test.started !== session.started) return;
   // A phone can put the tab to sleep and wake it after the deadline; time past the deadline wasn't spent on the puzzle.
   const spent = seconds - Math.max(0, (Date.now() - test.deadline) / 1000);
   if (spent > 0) test.times[i] = Math.round((test.times[i] + spent) * 10) / 10;

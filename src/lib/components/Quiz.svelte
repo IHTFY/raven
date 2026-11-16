@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy, untrack } from 'svelte';
   import { go } from '../router.svelte.js';
   import { clock, plural } from '../format.js';
   import { pressesControl } from '../keys.js';
@@ -9,9 +10,9 @@
   import PlayAd from './PlayAd.svelte';
   import Sheet from './Sheet.svelte';
 
-  const test = store.test;
-  const puzzles = puzzlesFor(test.seed);
-  const last = puzzles.length - 1;
+  const test = $derived(store.test);
+  const puzzles = $derived(puzzlesFor(test.seed));
+  const last = $derived(puzzles.length - 1);
 
   const puzzle = $derived(puzzles[test.current]);
   const blanks = $derived(test.answers.filter((a) => a == null).length);
@@ -28,11 +29,16 @@
 
   // Time on each puzzle, added up over every visit to it, for the statistics.
   let shownAt = performance.now();
+  let stopTiming = () => {};
   $effect(() => {
-    const i = test.current;
+    const session = test;
+    const i = session.current;
+    // Record the previous visit outside teardown, which reads pre-update state.
+    untrack(() => stopTiming());
     shownAt = performance.now();
-    return () => spendTime(i, (performance.now() - shownAt) / 1000);
+    stopTiming = () => spendTime(i, (performance.now() - shownAt) / 1000, session);
   });
+  onDestroy(() => stopTiming());
 
   const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
 
@@ -41,10 +47,11 @@
   let advance;
   function choose(k) {
     if (!answerTest(k)) return;
+    const session = test;
     const at = test.current;
     clearTimeout(advance);
     advance = setTimeout(() => {
-      if (test.current !== at) return;
+      if (test.seed !== session.seed || test.started !== session.started || test.current !== at) return;
       if (at === last) overview = true;
       else move(at + 1);
     }, 280);
