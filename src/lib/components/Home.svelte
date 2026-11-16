@@ -17,6 +17,8 @@
 
   // With an ad on the screen, the logo and the older tests make room for it.
   const hasAd = screenAdSlot('home') !== null;
+  // The box carries its own Privacy link; the footer has one whenever the box isn't on view.
+  let adShown = $state(false);
 
   // A test can run out while you're away from it.
   expireTest();
@@ -122,11 +124,11 @@
 
   <footer class="muted small">
     <p>Not a formal IQ test. Inspired by Mensa Norway's test and the Sandia Matrices.</p>
-    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/projects/">More games</a>{#if !hasAd} · <a href="https://ihtfy.com/privacy/">Privacy</a>{/if}</p>
+    <p><a href="https://ihtfy.com">IHTFY</a> · <a href="https://github.com/IHTFY/raven">Source</a> · <a href="https://ihtfy.com/projects/">More games</a>{#if !adShown}{' · '}<a href="https://ihtfy.com/privacy/">Privacy</a>{/if}</p>
   </footer>
 
   <!-- Only once a game has finished in this tab: no ad on a first visit. -->
-  <AdBox screen="home" />
+  <AdBox screen="home" bind:shown={adShown} />
 </main>
 
 <style>

@@ -36,23 +36,23 @@ export function screenAdSlot(screen) {
   return null;
 }
 
-// The size of the ad box on a screen, by window, first match wins: beside the
-// result on wide windows, or below it, as large as the screen holds with the
-// result and its buttons in view and 50 px between them and the box. A window
-// under 352 px wide (the widest box plus the screen's side padding) gets none.
-const TOO_NARROW = { query: '(max-width: 351px)', size: null };
+// The boxes a screen may hold, largest first. The box takes the first size
+// that leaves it, the links above it, and the screen's buttons all in the first
+// screen (AdBox measures this once, when the screen opens), and the screen gets
+// no box when even the smallest would end below the fold. A window under 352 px
+// wide (the widest box plus the screen's side padding) gets none.
+const TOO_NARROW = '(max-width: 351px)';
+const BESIDE_RESULTS = '(min-width: 1000px) and (min-height: 500px)';
 
-const STACKED_SIZES = [
-  TOO_NARROW,
-  { query: '(min-height: 860px)', size: '300x250' },
-  { query: '(min-height: 700px)', size: '320x100' },
-  { query: 'all', size: '320x50' },
-];
+export const STACKED_AD_SIZES = ['300x250', '320x100', '320x50'];
 
-export const SCREEN_AD_SIZES = {
-  results: [{ query: '(min-width: 1000px) and (min-height: 500px)', size: '300x250' }, ...STACKED_SIZES],
-  home: STACKED_SIZES,
-};
+/** The sizes the ad box on `screen` may take in this window, largest first; none in a window too narrow. */
+export function adSizesFor(screen) {
+  if (matchMedia(TOO_NARROW).matches) return [];
+  // Beside the result on wide windows, where only the largest size is offered.
+  if (screen === 'results' && matchMedia(BESIDE_RESULTS).matches) return STACKED_AD_SIZES.slice(0, 1);
+  return STACKED_AD_SIZES;
+}
 
 // The size of the ad beside the puzzles during play, by window, first match
 // wins. Narrower or shorter windows, phones included, get no ad during play.

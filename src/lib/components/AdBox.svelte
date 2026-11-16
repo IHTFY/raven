@@ -4,49 +4,94 @@
 </script>
 
 <script>
-  import { MediaQuery } from 'svelte/reactivity';
-  import { SCREEN_AD_SIZES, screenAdSlot, showAdAfterInput } from '../ads.js';
+  import { adSizesFor, screenAdSlot, showAdAfterInput } from '../ads.js';
 
   /**
    * The ad on a screen where no game is in progress, or nothing when the screen
-   * gets none. The box has a fixed size, picked from the window when the screen
-   * opens or the window crosses into another size, so nothing shifts when the ad
-   * fills it. `adKey` names what the ad is for (a finished test); the Privacy and
-   * Remove ads links sit 50 px above the box, like the buttons on the screen.
+   * gets none. The box has a fixed size, the largest that leaves it in the first
+   * screen when the screen opens, so nothing shifts when the ad fills it, and
+   * no box at all when even the smallest doesn't fit. The size is never picked
+   * again: a window that later changes shape hides the box while it doesn't fit
+   * and brings it back when it does, and never asks for another ad. `adKey`
+   * names what the ad is for (a finished test); the Privacy and Remove ads links
+   * sit 50 px above the box, like the buttons on the screen. `shown` tells the
+   * screen whether the box, and so its Privacy link, is on view right now.
    */
-  let { screen, adKey = null } = $props();
+  let { screen, adKey = null, shown = $bindable(false) } = $props();
 
   // The screen never changes while the box is on it.
   // svelte-ignore state_referenced_locally
   const slot = screenAdSlot(screen);
   // svelte-ignore state_referenced_locally
-  const sizes = SCREEN_AD_SIZES[screen] ?? [];
-  const queries = sizes.map((s) => new MediaQuery(s.query));
-  const size = $derived(sizes.find((_, i) => queries[i].current)?.size);
+  const candidates = slot ? adSizesFor(screen) : [];
+  // svelte-ignore state_referenced_locally
+  const key = adKey ?? `${screen}/${++opened}`;
+
+  // Starts as the largest size, which the first measurement may replace.
+  let size = $state(candidates[0]);
   const [width, height] = $derived(size?.split('x') ?? []);
 
+  let aside = $state();
   let box = $state();
+
+  // The aside stretches across its screen, so the box's own bounds are checked too: a box wider than the
+  // room overflows the aside and the window, and sits inside the aside's padding when it fits.
+  const fits = () => {
+    const { bottom, left, right } = aside.getBoundingClientRect();
+    const { paddingLeft, paddingRight } = getComputedStyle(aside);
+    const inner = {
+      left: left + (parseFloat(paddingLeft) || 0),
+      right: right - (parseFloat(paddingRight) || 0),
+    };
+    const own = box.getBoundingClientRect();
+    return (
+      bottom <= innerHeight &&
+      left >= 0 &&
+      right <= innerWidth &&
+      own.left >= Math.max(0, inner.left) &&
+      own.right <= Math.min(innerWidth, inner.right)
+    );
+  };
+
+  let picked = false;
   $effect(() => {
-    if (box) showAdAfterInput(box, `${adKey ?? `${screen}/${++opened}`}/${size}`);
+    if (!aside || !box || picked) return;
+    picked = true;
+    const best = candidates.find((candidate) => {
+      const [w, h] = candidate.split('x');
+      box.style.width = `${w}px`;
+      box.style.height = `${h}px`;
+      return fits();
+    });
+    size = best;
+    shown = best !== undefined;
+    if (best) showAdAfterInput(box, key);
   });
+
+  // The display is set here, not in the markup: the box must be on the page, however briefly, to be measured.
+  function refit() {
+    if (!aside || !picked) return;
+    aside.style.display = '';
+    shown = fits();
+    aside.style.display = shown ? '' : 'none';
+  }
 </script>
 
-{#if slot && size}
-  <!-- A new box, so a new ad, when the size changes. -->
-  {#key size}
-    <aside class="ad">
-      <p class="links muted small"><a href="https://ihtfy.com/privacy/">Privacy</a></p>
-      <p class="muted small">Advertisements</p>
-      <div
-        class="ad-box"
-        bind:this={box}
-        style:width="{width}px"
-        style:height="{height}px"
-        data-ad-slot={slot}
-        data-ad-size={size}
-      ></div>
-    </aside>
-  {/key}
+<svelte:window onresize={refit} />
+
+{#if size}
+  <aside class="ad" bind:this={aside}>
+    <p class="links muted small"><a href="https://ihtfy.com/privacy/">Privacy</a></p>
+    <p class="muted small">Advertisements</p>
+    <div
+      class="ad-box"
+      bind:this={box}
+      style:width="{width}px"
+      style:height="{height}px"
+      data-ad-slot={slot}
+      data-ad-size={size}
+    ></div>
+  </aside>
 {/if}
 
 <style>
