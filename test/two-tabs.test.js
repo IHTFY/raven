@@ -36,6 +36,7 @@ beforeEach(() => localStorage.clear());
 afterEach(() => {
   for (const listener of listeners.splice(0)) window.removeEventListener('storage', listener);
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('two tabs', () => {
@@ -52,6 +53,25 @@ describe('two tabs', () => {
     expect(saved().log.map((a) => a.date)).toEqual([2, 1]);
     expect(saved().test.answers[0]).toBe(2);
     expect(saved().theme).toBe('dark');
+  });
+
+  it('doesn’t write over a save it failed to read', async () => {
+    const value = JSON.stringify({ generator: GENERATOR, history: [aResult(9)] });
+    localStorage.setItem('raven', value);
+    // Reading fails once while writing works. The test DOM's storage caches its methods, so swap in a stand-in rather than spy on them.
+    const real = localStorage;
+    let reads = 0;
+    vi.stubGlobal('localStorage', {
+      getItem(key) {
+        if (reads++ === 0) throw new Error('blocked');
+        return real.getItem(key);
+      },
+      setItem: (key, v) => real.setItem(key, v),
+    });
+    const { store, flushSync } = await openTab();
+    store.theme = 'dark';
+    flushSync();
+    expect(real.getItem('raven')).toBe(value);
   });
 
   it('merges results both tabs finished, with every date once', async () => {

@@ -25,13 +25,15 @@ const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [
 const MAX_DATE = 253402300799999;
 /** Far beyond what anyone answers in practice, so a counter above it is not from this app. */
 const MAX_COUNT = 1_000_000;
+/** Far longer than a test lasts. A saved time above it was edited by hand, and two of them could add up to infinity. */
+const MAX_SECONDS = 24 * 60 * 60;
 const isDate = (t) => Number.isFinite(t) && t >= 0 && t <= MAX_DATE;
 const isCount = (n) => Number.isInteger(n) && n >= 0 && n <= MAX_COUNT;
 const isTarget = (t) => Number.isFinite(t) && t >= EASIEST && t <= HARDEST;
 const OPTIONS = 6;
 const isChoice = (k) => k === null || (Number.isInteger(k) && k >= 0 && k < OPTIONS);
 const areNumbers = (...xs) => xs.every(Number.isFinite);
-const isTimes = (times, n) => Array.isArray(times) && times.length === n && times.every((t) => Number.isFinite(t) && t >= 0);
+const isTimes = (times, n) => Array.isArray(times) && times.length === n && times.every((t) => Number.isFinite(t) && t >= 0 && t <= MAX_SECONDS);
 const isKinds = (kinds, n) => Array.isArray(kinds) && kinds.length === n && kinds.every((k) => typeof k === 'string' && k.length <= 120);
 const isOutcomes = (o, n) => typeof o === 'string' && o.length === n && /^[rw-]*$/.test(o);
 
@@ -45,6 +47,7 @@ const isTest = (t) =>
   t.current < TEST_LENGTH &&
   isDate(t.started) &&
   isDate(t.deadline) &&
+  t.started <= t.deadline &&
   (t.times === undefined || isTimes(t.times, TEST_LENGTH)) &&
   (t.finished === null || isDate(t.finished));
 
@@ -82,11 +85,19 @@ function parse(raw) {
   const state = blank();
   // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
   if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
-  // Screens and links find a past test by its date, so dates must be unique.
-  if (Array.isArray(saved?.history) && saved.history.every(isResult) && new Set(saved.history.map((h) => h.date)).size === saved.history.length) {
-    state.history = saved.history.slice(0, HISTORY_LENGTH);
+  // One bad record drops only itself. Screens and links find a past test by its date, so only the first result with a date stays.
+  if (Array.isArray(saved?.history)) {
+    const dates = new Set();
+    state.history = saved.history
+      .filter((h) => {
+        if (!isResult(h) || dates.has(h.date)) return false;
+        dates.add(h.date);
+        return true;
+      })
+      .slice(0, HISTORY_LENGTH)
+      .map((h) => ({ ...h, seconds: Math.min(Math.max(h.seconds, 0), MAX_SECONDS) }));
   }
-  if (Array.isArray(saved?.log) && saved.log.every(isAttempt)) state.log = saved.log.slice(0, LOG_LENGTH);
+  if (Array.isArray(saved?.log)) state.log = saved.log.filter(isAttempt).slice(0, LOG_LENGTH);
   // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
   if (saved?.generator === GENERATOR) {
     // Tests started before times were kept count from zero.
@@ -96,11 +107,22 @@ function parse(raw) {
   return state;
 }
 
+/** False when reading the save failed, so a save may still be there: writing then would replace it with this visit's blank state. */
+let canSave = true;
+
 function load() {
+  let raw;
   try {
-    return parse(localStorage.getItem(KEY));
+    raw = localStorage.getItem(KEY);
   } catch {
-    // Unreadable or blocked storage: start over rather than fail to open.
+    // Blocked storage: start over for this visit rather than fail to open.
+    canSave = false;
+    return blank();
+  }
+  try {
+    return parse(raw);
+  } catch {
+    // A damaged save: start over.
     return blank();
   }
 }
@@ -109,6 +131,7 @@ export const store = $state(load());
 
 $effect.root(() => {
   $effect(() => {
+    if (!canSave) return;
     const saved = JSON.stringify(store);
     try {
       localStorage.setItem(KEY, saved);
@@ -217,7 +240,8 @@ export function spendTime(i, seconds) {
 /** A short name for a puzzle's style: its family and the rules on its changing attributes, like "tiles:xor". */
 export const kindOf = (puzzle) => `${puzzle.family}:${puzzle.rules.map((r) => r.rule).sort().join('+')}`;
 
-export const elapsed = (test) => Math.round((test.finished - test.started) / 1000);
+/** Seconds the test took: never below zero, even if the clock was set back during it. */
+export const elapsed = (test) => Math.max(0, Math.round((test.finished - test.started) / 1000));
 
 export function finishTest() {
   const test = store.test;
