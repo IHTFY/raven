@@ -167,6 +167,41 @@ describe('the screens', () => {
     expect(document.querySelectorAll('aside')).toHaveLength(0);
   });
 
+  it('keeps a Privacy link on Home after a game when no box fits, and drops the footer one when a box shows', async () => {
+    room({ above: 520, innerHeight: 640 });
+    const { Home, ads } = await load();
+    ads.noteGameFinished();
+    show(Home);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+    expect(document.querySelector('footer p:last-child').textContent).toBe('IHTFY · Source · More games · Privacy');
+    svelte.unmount(app);
+    document.body.innerHTML = '';
+    vi.restoreAllMocks();
+    vi.spyOn(document.head, 'appendChild').mockImplementation((el) => el);
+    room({ above: 500, innerHeight: 915 });
+    const [box] = show(Home);
+    expect(box).toBeDefined();
+    expect(document.querySelector('footer p:last-child').textContent).toBe('IHTFY · Source · More games');
+    expect(document.querySelectorAll('a[href="https://ihtfy.com/privacy/"]')).toHaveLength(1);
+  });
+
+  it('brings the footer Privacy link back on Home while a resize hides the box', async () => {
+    room({ above: 500, innerHeight: 915 });
+    const { Home, ads } = await load();
+    ads.noteGameFinished();
+    show(Home);
+    const footer = () => document.querySelector('footer p:last-child').textContent;
+    expect(footer()).toBe('IHTFY · Source · More games');
+    vi.stubGlobal('innerHeight', 640);
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(footer()).toBe('IHTFY · Source · More games · Privacy');
+    vi.stubGlobal('innerHeight', 915);
+    dispatchEvent(new Event('resize'));
+    svelte.flushSync();
+    expect(footer()).toBe('IHTFY · Source · More games');
+  });
+
   it('puts no box on Results when even the smallest would end below the first screen', async () => {
     room({ above: 420, innerHeight: 412, innerWidth: 915 });
     window_();

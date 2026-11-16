@@ -14,9 +14,10 @@
    * again: a window that later changes shape hides the box while it doesn't fit
    * and brings it back when it does, and never asks for another ad. `adKey`
    * names what the ad is for (a finished test); the Privacy and Remove ads links
-   * sit 50 px above the box, like the buttons on the screen.
+   * sit 50 px above the box, like the buttons on the screen. `shown` tells the
+   * screen whether the box, and so its Privacy link, is on view right now.
    */
-  let { screen, adKey = null } = $props();
+  let { screen, adKey = null, shown = $bindable(false) } = $props();
 
   // The screen never changes while the box is on it.
   // svelte-ignore state_referenced_locally
@@ -49,6 +50,7 @@
       return fits();
     });
     size = best;
+    shown = best !== undefined;
     if (best) showAdAfterInput(box, key);
   });
 
@@ -56,7 +58,8 @@
   function refit() {
     if (!aside || !picked) return;
     aside.style.display = '';
-    aside.style.display = fits() ? '' : 'none';
+    shown = fits();
+    aside.style.display = shown ? '' : 'none';
   }
 </script>
 
