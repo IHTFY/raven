@@ -95,7 +95,7 @@ function heldToken() {
   }
   // The loader tries every cookie of that name, so each one is part of what is held.
   const fromCookie = [...cookie.matchAll(/(?:^|;\s*)ihtfy-ad-free=([^;]*)/g)].map((m) => m[1]);
-  return stored || fromCookie.length ? `${stored ?? ''}|${fromCookie.join('|')}` : '';
+  return stored || fromCookie.length ? JSON.stringify([stored, ...fromCookie]) : '';
 }
 
 /** Whether this browser holds an ad-free token, unchecked; the loader checks it. */
