@@ -40,3 +40,11 @@ it('shows a period where the browser uses one', () => {
   flushSync();
   expect(tile('average')).toBe('0.0');
 });
+
+it('keeps the digits `toFixed` gives where the mean sits on a rounding edge', () => {
+  browserLocale('en-US');
+  store.history = Array.from({ length: 20 }, (_, i) => ({ seed: 'xyz', score: i < 17 ? 20 : 21, total: TEST_LENGTH, seconds: 5, date: i, answers: [], times: [], kinds: [], outcomes: '' }));
+  app = mount(Stats, { target: document.body });
+  flushSync();
+  expect(tile('average')).toBe('20.1');
+});

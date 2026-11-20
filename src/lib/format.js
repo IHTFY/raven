@@ -14,7 +14,7 @@ export const duration = (seconds) => {
 const day = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
 export const shortDate = (ms) => day.format(ms);
 
-/** A number with one decimal place, using the browser's decimal separator. */
-export const oneDecimal = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+/** A number with one decimal place, using the browser's decimal separator. It rounds as `toFixed` does, so a figure keeps its digits. */
+export const oneDecimal = (n) => Number(n.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
