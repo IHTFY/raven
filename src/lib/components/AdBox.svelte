@@ -5,6 +5,7 @@
 
 <script>
   import { adSizesFor, screenAdSlot, showAdAfterInput } from '../ads.js';
+  import { trackPurchase } from '../purchase.svelte.js';
 
   /**
    * The ad on a screen where no game is in progress, or nothing when the screen
@@ -19,20 +20,25 @@
    */
   let { screen, adKey = null, shown = $bindable(false) } = $props();
 
-  // The screen never changes while the box is on it.
-  // svelte-ignore state_referenced_locally
-  const slot = screenAdSlot(screen);
-  // svelte-ignore state_referenced_locally
-  const candidates = slot ? adSizesFor(screen) : [];
+  // The screen never changes while the box is on it. A visitor with an unchecked ad-free token gets no box
+  // until the loader finds the token invalid.
+  const purchase = trackPurchase();
   // svelte-ignore state_referenced_locally
   const key = adKey ?? `${screen}/${++opened}`;
+  const slot = $derived(purchase.held ? null : screenAdSlot(screen));
+  const candidates = $derived(slot ? adSizesFor(screen) : []);
 
   // Starts as the largest size, which the first measurement may replace.
+  // svelte-ignore state_referenced_locally
   let size = $state(candidates[0]);
+  $effect(() => {
+    if (size === undefined && !picked) size = candidates[0];
+  });
   const [width, height] = $derived(size?.split('x') ?? []);
 
   let aside = $state();
   let box = $state();
+  let picked = false;
 
   // The aside stretches across its screen, so the box's own bounds are checked too: a box wider than the
   // room overflows the aside and the window, and sits inside the aside's padding when it fits.
@@ -53,7 +59,6 @@
     );
   };
 
-  let picked = false;
   $effect(() => {
     if (!aside || !box || picked) return;
     picked = true;

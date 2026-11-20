@@ -1,5 +1,6 @@
 <script>
   import { screenAdSlot } from '../ads.js';
+  import { trackPurchase } from '../purchase.svelte.js';
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
@@ -24,7 +25,8 @@
   }
 
   // With an ad on the screen, the logo and the older tests make room for it.
-  const hasAd = screenAdSlot('home') !== null;
+  const purchase = trackPurchase();
+  const hasAd = $derived(!purchase.held && screenAdSlot('home') !== null);
   // The box carries its own Privacy link; the footer has one whenever the box isn't on view.
   let adShown = $state(false);
 

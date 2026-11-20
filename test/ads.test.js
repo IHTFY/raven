@@ -151,3 +151,48 @@ describe('mayBeAdFree', () => {
     expect(mayBeAdFree()).toBe(true);
   });
 });
+
+describe('checkPurchase', () => {
+  it('resolves at once, loading nothing, for a visitor without a token', async () => {
+    const { checkPurchase, holdsToken } = await loadAds();
+    await checkPurchase();
+    expect(added).toHaveLength(0);
+    expect(holdsToken()).toBe(false);
+  });
+
+  it('keeps holding the token until the loader rejects it, then stops', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    let answer;
+    window.ihtfyAds.adFree = () => new Promise((resolve) => (answer = resolve));
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    expect(holdsToken()).toBe(true);
+    added[0].dispatchEvent(new Event('load'));
+    await tick();
+    expect(holdsToken()).toBe(true);
+    answer(false);
+    await done;
+    expect(holdsToken()).toBe(false);
+  });
+
+  it('keeps holding the token of a buyer the loader confirms', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    window.ihtfyAds.adFree = async () => true;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await done;
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps holding the token when the loader cannot load, and checks again next time', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('error'));
+    await done;
+    expect(holdsToken()).toBe(true);
+    checkPurchase();
+    expect(added).toHaveLength(2);
+  });
+});

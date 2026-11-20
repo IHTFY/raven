@@ -34,6 +34,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete window.ihtfyAds;
   vi.unstubAllGlobals();
   if (app) svelte.unmount(app);
   app = null;
@@ -324,6 +325,137 @@ describe('the screens', () => {
     svelte.unmount(app);
     document.body.innerHTML = '';
     expect(show(Home)).toHaveLength(0);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+  });
+});
+
+describe('a stored ad-free token whose check is still pending', () => {
+  const settle = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    svelte.flushSync();
+  };
+
+  /**
+   * The shared loader as a test double. The token check stays pending until `answer(free)` runs: it
+   * reports a pending check by returning a promise, and `free` is what the loader decides.
+   */
+  function loaderDouble() {
+    let answer;
+    window.ihtfyAds = { show: vi.fn(), adFree: () => new Promise((resolve) => (answer = resolve)) };
+    return {
+      /** The page has asked for the loader: let it arrive. */
+      async arrive() {
+        const script = document.head.appendChild.mock.calls.map(([el]) => el).find((el) => el.src?.endsWith('/ads/v1.js'));
+        script.dispatchEvent(new Event('load'));
+        await settle();
+      },
+      async answer(free) {
+        answer(free);
+        await settle();
+      },
+    };
+  }
+
+  const wide = () =>
+    vi.stubGlobal('matchMedia', (query) => ({
+      matches: query === '(min-width: 1500px) and (min-height: 700px)',
+      media: query,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+
+  async function finishedTest() {
+    const loaded = await load();
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    loaded.state.startTest('abc');
+    loaded.state.finishTest();
+    return loaded;
+  }
+
+  it('holds no space on Results while pending, then adds the box when the token is rejected', async () => {
+    const { Results } = await finishedTest();
+    const loader = loaderDouble();
+    expect(show(Results)).toHaveLength(0);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+    await loader.arrive();
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+    await loader.answer(false);
+    const boxes = [...document.querySelectorAll('[data-ad-slot]')];
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].dataset.adSlot).toBe('6470163205');
+  });
+
+  it('keeps Results free of a box for a confirmed buyer', async () => {
+    const { Results } = await finishedTest();
+    const loader = loaderDouble();
+    show(Results);
+    await loader.arrive();
+    await loader.answer(true);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-ad-slot]')).toHaveLength(0);
+  });
+
+  it('gives Home its ad layout when the token is rejected', async () => {
+    const { Home, ads } = await load();
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    ads.noteGameFinished();
+    const loader = loaderDouble();
+    show(Home);
+    // The logo shows only on a Home without an ad.
+    expect(document.querySelector('.logo')).not.toBeNull();
+    await loader.arrive();
+    await loader.answer(false);
+    expect(document.querySelectorAll('[data-ad-slot]')).toHaveLength(1);
+    expect(document.querySelector('.logo')).toBeNull();
+  });
+
+  it('keeps Home free of a box for a confirmed buyer', async () => {
+    const { Home, ads } = await load();
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    ads.noteGameFinished();
+    const loader = loaderDouble();
+    show(Home);
+    await loader.arrive();
+    await loader.answer(true);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+    expect(document.querySelector('.logo')).not.toBeNull();
+  });
+
+  it('holds no rail beside the puzzles while pending, then adds it when the token is rejected', async () => {
+    wide();
+    const { Quiz, state } = await load();
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    state.startTest('abc');
+    const loader = loaderDouble();
+    expect(show(Quiz)).toHaveLength(0);
+    // Gameplay and its controls are there throughout.
+    expect(document.querySelector('[aria-label="All puzzles"]')).not.toBeNull();
+    await loader.arrive();
+    await loader.answer(false);
+    const boxes = [...document.querySelectorAll('[data-ad-slot]')];
+    expect(boxes.map((b) => b.dataset.adSize)).toEqual(['300x600']);
+    expect(document.querySelector('[aria-label="All puzzles"]')).not.toBeNull();
+  });
+
+  it('keeps the rail away for a confirmed buyer', async () => {
+    wide();
+    const { Quiz, state } = await load();
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    state.startTest('abc');
+    const loader = loaderDouble();
+    show(Quiz);
+    await loader.arrive();
+    await loader.answer(true);
+    expect(document.querySelectorAll('aside')).toHaveLength(0);
+  });
+
+  it('keeps the space collapsed when the loader never arrives', async () => {
+    const { Results } = await finishedTest();
+    loaderDouble();
+    show(Results);
+    const script = document.head.appendChild.mock.calls.map(([el]) => el).find((el) => el.src?.endsWith('/ads/v1.js'));
+    script.dispatchEvent(new Event('error'));
+    await settle();
     expect(document.querySelectorAll('aside')).toHaveLength(0);
   });
 });

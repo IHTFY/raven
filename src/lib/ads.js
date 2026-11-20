@@ -4,7 +4,8 @@
 // first tap or key press: the loader arrives when a test or practice starts or
 // a game ends, and AdSense after it at browser idle. A visitor who may have
 // bought ad-free gets the loader at startup instead (loadForBuyer), so it can
-// hide the ads before they show.
+// hide the ads before they show. Until the loader has checked the token, no
+// space is held for an ad; a token it rejects lets the ordinary placement apply.
 const LOADER = import.meta.env.VITE_ADS_LOADER || 'https://ihtfy.com/ads/v1.js';
 
 // The shared 300×250 display unit for game results ("games-results" in AdSense).
@@ -28,10 +29,11 @@ export const noteGameFinished = () => {
  * The AdSense unit for the ad box on a screen, or null for no box. Only Results
  * and, once a game has finished in this tab, Home carry one; the test and
  * practice screens never do on a phone (the rail beside them is `PlayAd`'s). A
- * visitor who may have bought ad-free gets none, and no space is held for it.
+ * visitor who may have bought ad-free gets none, and no space is held for it,
+ * until the loader has found the token invalid.
  */
 export function screenAdSlot(screen) {
-  if (mayBeAdFree()) return null;
+  if (holdsToken()) return null;
   if (screen === 'results' || (screen === 'home' && gameFinished)) return RESULTS_AD_SLOT;
   return null;
 }
@@ -92,6 +94,31 @@ export function mayBeAdFree() {
     // Cookies off too (a sandboxed frame): the app must still start.
   }
   return Boolean(stored) || /(?:^|;\s*)ihtfy-ad-free=/.test(cookie);
+}
+
+// Set when the loader has found the stored token invalid, so it no longer keeps ads away.
+let tokenRejected = false;
+let purchaseCheck = null;
+
+/** Whether the ad boxes must stay away: this browser holds a token and the loader hasn't found it invalid. */
+export const holdsToken = () => !tokenRejected && mayBeAdFree();
+
+/**
+ * Has the loader check the token this browser holds. Resolves once `holdsToken()` is final: false for no
+ * token or one the loader rejects, true for a buyer. If the loader can't load, the token stays unchecked
+ * and so keeps the boxes away.
+ */
+export function checkPurchase() {
+  if (!mayBeAdFree()) return Promise.resolve();
+  purchaseCheck ??= load().then(
+    async () => {
+      if (!(await window.ihtfyAds.adFree())) tokenRejected = true;
+    },
+    () => {
+      purchaseCheck = null;
+    },
+  );
+  return purchaseCheck;
 }
 
 /** Loads the loader now if this browser holds an ad-free token, so it can hide every ad box. */
