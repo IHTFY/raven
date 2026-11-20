@@ -22,6 +22,7 @@ afterEach(() => {
   app = null;
   document.body.innerHTML = '';
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 it('saves the time on the current puzzle when the page is hidden for a reload', async () => {
@@ -77,4 +78,30 @@ it('never saves more time on a puzzle than a save may hold', async () => {
   window.dispatchEvent(new Event('pagehide'));
 
   expect(store.test.times[0]).toBe(24 * 60 * 60);
+});
+
+it('does not count background time when the test times out while hidden', async () => {
+  const store = await open();
+
+  vi.advanceTimersByTime(2000);
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  document.dispatchEvent(new Event('visibilitychange'));
+  vi.advanceTimersByTime(60000);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+  vi.advanceTimersByTime(1000);
+  unmount(app);
+  app = null;
+
+  expect(store.test.times[0]).toBe(2);
+  expect(store.test.times[1]).toBe(0);
+});
+
+it('does not count the time of a quiz that opened and closed in a background tab', async () => {
+  vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+  const store = await open();
+
+  vi.advanceTimersByTime(5000);
+  window.dispatchEvent(new Event('pagehide'));
+
+  expect(store.test.times[0]).toBe(0);
 });

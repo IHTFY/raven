@@ -28,7 +28,10 @@
   });
 
   // Time on each puzzle, added up over every visit to it, for the statistics.
+  // Time in a hidden tab isn't time on the puzzle: counting restarts when the page is shown again.
+  let hidden = document.visibilityState === 'hidden';
   let shownAt = performance.now();
+  const seconds = () => (hidden ? 0 : (performance.now() - shownAt) / 1000);
   let stopTiming = () => {};
   $effect(() => {
     const session = test;
@@ -36,13 +39,11 @@
     // Record the previous visit outside teardown, which reads pre-update state.
     untrack(() => stopTiming());
     shownAt = performance.now();
-    stopTiming = () => spendTime(i, (performance.now() - shownAt) / 1000, session);
+    stopTiming = () => spendTime(i, seconds(), session);
   });
   onDestroy(() => stopTiming());
 
   // A reload or a closed tab ends the page without the cleanup above, so the visit so far is saved as the page hides.
-  // Time in a hidden tab isn't time on the puzzle: counting restarts when the page is shown again.
-  let hidden = false;
   function saveVisit() {
     if (hidden) return;
     stopTiming();
@@ -78,7 +79,7 @@
   $effect(() => () => clearTimeout(advance));
 
   function finish() {
-    spendTime(test.current, (performance.now() - shownAt) / 1000);
+    spendTime(test.current, seconds());
     shownAt = performance.now();
     finishTest();
     go(`test/${test.seed}`);
