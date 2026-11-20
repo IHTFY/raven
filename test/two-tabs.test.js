@@ -166,11 +166,15 @@ describe('two tabs', () => {
     finishTest();
     flushSync();
     const stale = JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed, started }), history: [], practice: { ...store.practice, done: 5, right: 3 }, log: [] });
-    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+    const read = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
       throw new DOMException('denied', 'SecurityError');
     });
-    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: stale, storageArea: localStorage }));
-    expect(store.practice.done).toBe(5);
+    try {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: stale, storageArea: localStorage }));
+      expect(store.practice.done).toBe(5);
+    } finally {
+      read.mockRestore();
+    }
   });
 
   it('still takes a new test another tab started after this one finished', async () => {
