@@ -1,6 +1,6 @@
 <script>
   import { TEST_LENGTH } from '../engine/generate.js';
-  import { clock } from '../format.js';
+  import { clock, oneDecimal } from '../format.js';
   import { go } from '../router.svelte.js';
   import { store } from '../state.svelte.js';
   import { FAMILY_NAMES, RULE_NAMES, attempts, byCombination, byFamily, byPosition, byRule, comboName, histogram, nameIn, summary } from '../stats.js';
@@ -38,7 +38,7 @@
     <section class="tiles">
       <div class="tile raised"><b class="tabular">{head.tests}</b><span class="muted">tests</span></div>
       <div class="tile raised"><b class="tabular">{head.best ?? '–'}</b><span class="muted">best</span></div>
-      <div class="tile raised"><b class="tabular">{head.average == null ? '–' : head.average.toFixed(1)}</b><span class="muted">average</span></div>
+      <div class="tile raised"><b class="tabular">{head.average == null ? '–' : oneDecimal(head.average)}</b><span class="muted">average</span></div>
       <div class="tile raised"><b class="tabular">{head.seconds == null ? '–' : clock(head.seconds * 1000)}</b><span class="muted">median time</span></div>
     </section>
 
