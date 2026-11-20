@@ -121,6 +121,7 @@
   footer {
     min-height: 48px;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     gap: 12px;
