@@ -151,3 +151,109 @@ describe('mayBeAdFree', () => {
     expect(mayBeAdFree()).toBe(true);
   });
 });
+
+describe('checkPurchase', () => {
+  it('resolves at once, loading nothing, for a visitor without a token', async () => {
+    const { checkPurchase, holdsToken } = await loadAds();
+    await checkPurchase();
+    expect(added).toHaveLength(0);
+    expect(holdsToken()).toBe(false);
+  });
+
+  it('keeps holding the token until the loader rejects it, then stops', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    let answer;
+    window.ihtfyAds.adFree = () => new Promise((resolve) => (answer = resolve));
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    expect(holdsToken()).toBe(true);
+    added[0].dispatchEvent(new Event('load'));
+    await tick();
+    expect(holdsToken()).toBe(true);
+    answer(false);
+    await done;
+    expect(holdsToken()).toBe(false);
+  });
+
+  it('keeps holding the token of a buyer the loader confirms', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    window.ihtfyAds.adFree = async () => true;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await done;
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps holding the token when the loader cannot load, and checks again next time', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('error'));
+    await done;
+    expect(holdsToken()).toBe(true);
+    checkPurchase();
+    expect(added).toHaveLength(2);
+  });
+
+  it('checks a token restored after the loader rejected the old one', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'old');
+    window.ihtfyAds.adFree = async () => false;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const first = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await first;
+    expect(holdsToken()).toBe(false);
+    localStorage.setItem('ihtfy-ad-free', 'restored');
+    expect(holdsToken()).toBe(true);
+    window.ihtfyAds.adFree = async () => true;
+    await checkPurchase();
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps holding the token when the loader fails to verify it, and checks again next time', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    window.ihtfyAds.adFree = async () => {
+      throw new Error('verification failed');
+    };
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await expect(done).resolves.toBeUndefined();
+    expect(holdsToken()).toBe(true);
+    window.ihtfyAds.adFree = async () => false;
+    await checkPurchase();
+    expect(holdsToken()).toBe(false);
+  });
+
+  it('counts every cookie of that name, as the loader does', async () => {
+    document.cookie = 'ihtfy-ad-free=stale';
+    window.ihtfyAds.adFree = async () => false;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const first = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await first;
+    expect(holdsToken()).toBe(false);
+    // A second cookie of the same name (another path) now backs the first.
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('ihtfy-ad-free=stale; ihtfy-ad-free=valid');
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps a newer rejection when an older check settles after it', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'one');
+    const answers = [];
+    window.ihtfyAds.adFree = () => new Promise((resolve) => answers.push(resolve));
+    const { checkPurchase, holdsToken } = await loadAds();
+    const older = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await tick();
+    localStorage.setItem('ihtfy-ad-free', 'two');
+    const newer = checkPurchase();
+    await tick();
+    answers[1](false);
+    await newer;
+    answers[0](false);
+    await older;
+    expect(holdsToken()).toBe(false);
+  });
+});

@@ -5,7 +5,8 @@
 
 <script>
   import { MediaQuery } from 'svelte/reactivity';
-  import { PLAY_AD_SIZES, PLAY_AD_SLOT, mayBeAdFree, showAdAfterInput } from '../ads.js';
+  import { PLAY_AD_SIZES, PLAY_AD_SLOT, showAdAfterInput } from '../ads.js';
+  import { trackPurchase } from '../purchase.svelte.js';
 
   /**
    * A test or practice screen with one ad beside it on wide windows, 150 px
@@ -15,9 +16,9 @@
   let { name, children } = $props();
 
   // A buyer gets no box at all, even before the loader has checked the token.
-  const buyer = mayBeAdFree();
+  const purchase = trackPurchase();
   const queries = PLAY_AD_SIZES.map((p) => new MediaQuery(p.query));
-  const placement = $derived(buyer ? undefined : PLAY_AD_SIZES.find((_, i) => queries[i].current));
+  const placement = $derived(purchase.held ? undefined : PLAY_AD_SIZES.find((_, i) => queries[i].current));
   const [width, height] = $derived(placement?.size.split('x') ?? []);
 
   // Sheets stay 150 px left of the ad, so nothing covers it or crowds it with
