@@ -1,5 +1,5 @@
 <script>
-  import { onDestroy, untrack } from 'svelte';
+  import { flushSync, onDestroy, untrack } from 'svelte';
   import { go } from '../router.svelte.js';
   import { clock, plural } from '../format.js';
   import { pressesControl } from '../keys.js';
@@ -40,6 +40,13 @@
   });
   onDestroy(() => stopTiming());
 
+  // A reload or a closed tab ends the page without the cleanup above, so the visit so far is saved as the page hides.
+  function saveVisit() {
+    stopTiming();
+    shownAt = performance.now();
+    flushSync();
+  }
+
   const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
 
   // After a pick, move on once the choice has had a moment to show,
@@ -77,7 +84,8 @@
   }
 </script>
 
-<svelte:window onkeydown={keydown} />
+<svelte:window onkeydown={keydown} onpagehide={saveVisit} />
+<svelte:document onvisibilitychange={() => document.visibilityState === 'hidden' && saveVisit()} />
 
 <PlayAd name="test">
   <main>
