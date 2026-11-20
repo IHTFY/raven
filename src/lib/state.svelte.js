@@ -164,7 +164,11 @@ function takeFromOtherTab(raw) {
   // Work in progress here stays, unless it is the same test or practice the other tab moved on.
   const mine = store.test;
   const theirs = other.test;
-  if (theirs && !same(mine, theirs) && (!isRunning(mine) || (mine.seed === theirs.seed && mine.started === theirs.started && !(mine.finished && !theirs.finished)))) store.test = theirs;
+  if (theirs && !same(mine, theirs)) {
+    const sameTest = mine && mine.seed === theirs.seed && mine.started === theirs.started;
+    // An older copy of a test finished here must not reopen it; a finish from the other tab still counts.
+    if (sameTest ? !mine.finished || theirs.finished : !isRunning(mine)) store.test = theirs;
+  }
   if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
 }
 

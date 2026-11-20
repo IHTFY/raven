@@ -112,6 +112,32 @@ describe('two tabs', () => {
     expect(store.test.finished).toBe(started + 5);
   });
 
+  it('a queued save cannot reopen a test just finished in this tab', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const earlier = localStorage.getItem('raven');
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: earlier, storageArea: localStorage }));
+    flushSync();
+    expect(store.test.finished).toBe(finished);
+    expect(saved().test.finished).toBe(finished);
+  });
+
+  it('still takes a new test another tab started after this one finished', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    finishTest();
+    flushSync();
+    const started = store.test.started + 1000;
+    otherTabWrites({ test: aTest({ seed: 'abc', started }) });
+    expect(store.test.finished).toBe(null);
+    expect(store.test.started).toBe(started);
+  });
+
   it('ignores other keys, a damaged value, and a save from another generator', async () => {
     const { store, flushSync } = await openTab();
     window.dispatchEvent(new StorageEvent('storage', { key: 'other', newValue: JSON.stringify({ theme: 'dark' }), storageArea: localStorage }));
