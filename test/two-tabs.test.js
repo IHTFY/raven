@@ -141,6 +141,38 @@ describe('two tabs', () => {
     expect(saved().history).toHaveLength(1);
   });
 
+  it('repairs the stored finished test with the merged practice, not the stale one', async () => {
+    const { startTest, finishTest, startPractice, store, flushSync } = await openTab();
+    startTest('abc');
+    startPractice();
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    // The other tab's stale copy still has the test running, but its practice is further along.
+    otherTabWrites({ test: aTest({ seed, started }), practice: { ...store.practice, done: 5, right: 3 } });
+    // Right away, before any later save: the first write back already holds both.
+    expect(saved().test.finished).toBe(finished);
+    expect(saved().practice.done).toBe(5);
+  });
+
+  it('merges a stale save even when storage cannot be read back', async () => {
+    const { startTest, finishTest, startPractice, store, flushSync } = await openTab();
+    startTest('abc');
+    startPractice();
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const stale = JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed, started }), history: [], practice: { ...store.practice, done: 5, right: 3 }, log: [] });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: stale, storageArea: localStorage }));
+    expect(store.practice.done).toBe(5);
+  });
+
   it('still takes a new test another tab started after this one finished', async () => {
     const { startTest, finishTest, store, flushSync } = await openTab();
     startTest('abc');

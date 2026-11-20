@@ -166,14 +166,22 @@ function takeFromOtherTab(raw) {
   // Work in progress here stays, unless it is the same test or practice the other tab moved on.
   const mine = store.test;
   const theirs = other.test;
+  let repair = false;
   if (theirs && !same(mine, theirs)) {
     const sameTest = mine && mine.seed === theirs.seed && mine.started === theirs.started;
     // An older copy of a test finished here must not reopen it; a finish from the other tab still counts.
     if (sameTest ? !mine.finished || theirs.finished : !isRunning(mine)) store.test = theirs;
-    // Nothing here changed, so no save follows: write the finished test over the older copy the other tab left in storage.
-    else if (sameTest && localStorage.getItem(KEY) === raw) save();
+    // Nothing here changed, so no save follows: the finished test has to be written over the older copy the other tab left.
+    else repair = sameTest;
   }
   if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
+  if (repair) {
+    try {
+      if (localStorage.getItem(KEY) === raw) save();
+    } catch {
+      // Storage unreadable: the merge above still holds in memory.
+    }
+  }
 }
 
 addEventListener('storage', (event) => {
