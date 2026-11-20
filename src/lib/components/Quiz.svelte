@@ -41,10 +41,22 @@
   onDestroy(() => stopTiming());
 
   // A reload or a closed tab ends the page without the cleanup above, so the visit so far is saved as the page hides.
+  // Time in a hidden tab isn't time on the puzzle: counting restarts when the page is shown again.
+  let hidden = false;
   function saveVisit() {
+    if (hidden) return;
     stopTiming();
     shownAt = performance.now();
     flushSync();
+  }
+  function visibilitychange() {
+    if (document.visibilityState === 'hidden') {
+      saveVisit();
+      hidden = true;
+    } else {
+      hidden = false;
+      shownAt = performance.now();
+    }
   }
 
   const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
@@ -85,7 +97,7 @@
 </script>
 
 <svelte:window onkeydown={keydown} onpagehide={saveVisit} />
-<svelte:document onvisibilitychange={() => document.visibilityState === 'hidden' && saveVisit()} />
+<svelte:document onvisibilitychange={visibilitychange} />
 
 <PlayAd name="test">
   <main>
