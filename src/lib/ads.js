@@ -79,8 +79,8 @@ const load = () =>
     document.head.appendChild(script);
   }));
 
-/** Whether this browser holds an ad-free token, unchecked; the loader checks it. */
-export function mayBeAdFree() {
+/** The ad-free token this browser holds, stored and cookie copies together, or '' for none. The loader checks it. */
+function heldToken() {
   let stored = null;
   try {
     stored = localStorage.getItem('ihtfy-ad-free');
@@ -93,32 +93,45 @@ export function mayBeAdFree() {
   } catch {
     // Cookies off too (a sandboxed frame): the app must still start.
   }
-  return Boolean(stored) || /(?:^|;\s*)ihtfy-ad-free=/.test(cookie);
+  const fromCookie = /(?:^|;\s*)ihtfy-ad-free=([^;]*)/.exec(cookie);
+  return stored || fromCookie ? `${stored ?? ''}|${fromCookie?.[1] ?? ''}` : '';
 }
 
-// Set when the loader has found the stored token invalid, so it no longer keeps ads away.
-let tokenRejected = false;
+/** Whether this browser holds an ad-free token, unchecked; the loader checks it. */
+export const mayBeAdFree = () => heldToken() !== '';
+
+// The token the loader has found invalid, and the check under way or done for one token. A different token
+// (a purchase restored in another tab) is checked afresh.
+let rejectedToken = null;
 let purchaseCheck = null;
+let checkedToken = null;
 
 /** Whether the ad boxes must stay away: this browser holds a token and the loader hasn't found it invalid. */
-export const holdsToken = () => !tokenRejected && mayBeAdFree();
+export const holdsToken = () => {
+  const token = heldToken();
+  return token !== '' && token !== rejectedToken;
+};
 
 /**
- * Has the loader check the token this browser holds. Resolves once `holdsToken()` is final: false for no
- * token or one the loader rejects, true for a buyer. If the loader can't load, the token stays unchecked
- * and so keeps the boxes away.
+ * Has the loader check the token this browser holds. Resolves once the check is over, never rejecting:
+ * `holdsToken()` is then false for a token the loader rejects and true for a buyer. If the loader can't
+ * load or can't verify, the token stays unchecked and so keeps the boxes away; a later call tries again.
  */
 export function checkPurchase() {
-  if (!mayBeAdFree()) return Promise.resolve();
-  purchaseCheck ??= load().then(
-    async () => {
-      if (!(await window.ihtfyAds.adFree())) tokenRejected = true;
-    },
-    () => {
-      purchaseCheck = null;
-    },
-  );
-  return purchaseCheck;
+  const token = heldToken();
+  if (token === '') return Promise.resolve();
+  if (purchaseCheck && checkedToken === token) return purchaseCheck;
+  checkedToken = token;
+  const check = load()
+    .then(() => window.ihtfyAds.adFree())
+    .then((valid) => {
+      if (!valid) rejectedToken = token;
+    })
+    .catch(() => {
+      if (purchaseCheck === check) purchaseCheck = null;
+    });
+  purchaseCheck = check;
+  return check;
 }
 
 /** Loads the loader now if this browser holds an ad-free token, so it can hide every ad box. */

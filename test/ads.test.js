@@ -195,4 +195,34 @@ describe('checkPurchase', () => {
     checkPurchase();
     expect(added).toHaveLength(2);
   });
+
+  it('checks a token restored after the loader rejected the old one', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'old');
+    window.ihtfyAds.adFree = async () => false;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const first = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await first;
+    expect(holdsToken()).toBe(false);
+    localStorage.setItem('ihtfy-ad-free', 'restored');
+    expect(holdsToken()).toBe(true);
+    window.ihtfyAds.adFree = async () => true;
+    await checkPurchase();
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps holding the token when the loader fails to verify it, and checks again next time', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'token');
+    window.ihtfyAds.adFree = async () => {
+      throw new Error('verification failed');
+    };
+    const { checkPurchase, holdsToken } = await loadAds();
+    const done = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await expect(done).resolves.toBeUndefined();
+    expect(holdsToken()).toBe(true);
+    window.ihtfyAds.adFree = async () => false;
+    await checkPurchase();
+    expect(holdsToken()).toBe(false);
+  });
 });
