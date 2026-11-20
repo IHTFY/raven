@@ -126,6 +126,21 @@ describe('two tabs', () => {
     expect(saved().test.finished).toBe(finished);
   });
 
+  it('writes the finished test over an older copy a closed tab left in storage', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    // The other tab saved its copy of the unfinished test and closed before hearing of the finish.
+    otherTabWrites({ test: aTest({ seed, started }) });
+    expect(store.test.finished).toBe(finished);
+    expect(saved().test.finished).toBe(finished);
+    expect(saved().history).toHaveLength(1);
+  });
+
   it('still takes a new test another tab started after this one finished', async () => {
     const { startTest, finishTest, store, flushSync } = await openTab();
     startTest('abc');
