@@ -26,7 +26,7 @@
     const outside = !sheet.contains(document.activeElement) || document.activeElement === sheet;
     if (outside || (e.shiftKey ? document.activeElement === first : document.activeElement === last)) {
       e.preventDefault();
-      (e.shiftKey && !outside ? last : first).focus();
+      (e.shiftKey ? last : first).focus();
     }
   }
 </script>

@@ -47,6 +47,13 @@ it('keeps Tab and Shift+Tab inside the sheet', () => {
   expect(document.activeElement.id).toBe('b');
 });
 
+it('sends Shift+Tab from the freshly opened sheet to its last control', () => {
+  open();
+  expect(document.activeElement).toBe(document.querySelector('.sheet'));
+  expect(tab(true).defaultPrevented).toBe(true);
+  expect(document.activeElement.id).toBe('b');
+});
+
 it('pulls focus back from the page behind', () => {
   open();
   document.getElementById('behind2').focus();
