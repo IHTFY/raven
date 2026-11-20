@@ -209,6 +209,8 @@ describe('two tabs', () => {
   it('ignores other keys, a damaged value, and a save from another generator', async () => {
     const { store, flushSync } = await openTab();
     window.dispatchEvent(new StorageEvent('storage', { key: 'other', newValue: JSON.stringify({ theme: 'dark' }), storageArea: localStorage }));
+    // The listener reads storage, so the damaged value has to be what storage holds.
+    localStorage.setItem('raven', '{"history":');
     window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: '{"history":', storageArea: localStorage }));
     expect(store.theme).toBe(null);
     otherTabWrites({ generator: GENERATOR - 1, test: aTest(), history: [aResult(10)] });
