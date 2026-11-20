@@ -93,23 +93,24 @@ function heldToken() {
   } catch {
     // Cookies off too (a sandboxed frame): the app must still start.
   }
-  const fromCookie = /(?:^|;\s*)ihtfy-ad-free=([^;]*)/.exec(cookie);
-  return stored || fromCookie ? `${stored ?? ''}|${fromCookie?.[1] ?? ''}` : '';
+  // The loader tries every cookie of that name, so each one is part of what is held.
+  const fromCookie = [...cookie.matchAll(/(?:^|;\s*)ihtfy-ad-free=([^;]*)/g)].map((m) => m[1]);
+  return stored || fromCookie.length ? `${stored ?? ''}|${fromCookie.join('|')}` : '';
 }
 
 /** Whether this browser holds an ad-free token, unchecked; the loader checks it. */
 export const mayBeAdFree = () => heldToken() !== '';
 
-// The token the loader has found invalid, and the check under way or done for one token. A different token
+// The tokens the loader has found invalid, and the check under way or done for one token. A different token
 // (a purchase restored in another tab) is checked afresh.
-let rejectedToken = null;
+const rejectedTokens = new Set();
 let purchaseCheck = null;
 let checkedToken = null;
 
 /** Whether the ad boxes must stay away: this browser holds a token and the loader hasn't found it invalid. */
 export const holdsToken = () => {
   const token = heldToken();
-  return token !== '' && token !== rejectedToken;
+  return token !== '' && !rejectedTokens.has(token);
 };
 
 /**
@@ -125,7 +126,7 @@ export function checkPurchase() {
   const check = load()
     .then(() => window.ihtfyAds.adFree())
     .then((valid) => {
-      if (!valid) rejectedToken = token;
+      if (!valid) rejectedTokens.add(token);
     })
     .catch(() => {
       if (purchaseCheck === check) purchaseCheck = null;

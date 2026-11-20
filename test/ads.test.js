@@ -225,4 +225,35 @@ describe('checkPurchase', () => {
     await checkPurchase();
     expect(holdsToken()).toBe(false);
   });
+
+  it('counts every cookie of that name, as the loader does', async () => {
+    document.cookie = 'ihtfy-ad-free=stale';
+    window.ihtfyAds.adFree = async () => false;
+    const { checkPurchase, holdsToken } = await loadAds();
+    const first = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await first;
+    expect(holdsToken()).toBe(false);
+    // A second cookie of the same name (another path) now backs the first.
+    vi.spyOn(document, 'cookie', 'get').mockReturnValue('ihtfy-ad-free=stale; ihtfy-ad-free=valid');
+    expect(holdsToken()).toBe(true);
+  });
+
+  it('keeps a newer rejection when an older check settles after it', async () => {
+    localStorage.setItem('ihtfy-ad-free', 'one');
+    const answers = [];
+    window.ihtfyAds.adFree = () => new Promise((resolve) => answers.push(resolve));
+    const { checkPurchase, holdsToken } = await loadAds();
+    const older = checkPurchase();
+    added[0].dispatchEvent(new Event('load'));
+    await tick();
+    localStorage.setItem('ihtfy-ad-free', 'two');
+    const newer = checkPurchase();
+    await tick();
+    answers[1](false);
+    await newer;
+    answers[0](false);
+    await older;
+    expect(holdsToken()).toBe(false);
+  });
 });
