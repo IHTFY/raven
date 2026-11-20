@@ -112,9 +112,119 @@ describe('two tabs', () => {
     expect(store.test.finished).toBe(started + 5);
   });
 
+  it('a queued save cannot reopen a test just finished in this tab', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const earlier = localStorage.getItem('raven');
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: earlier, storageArea: localStorage }));
+    flushSync();
+    expect(store.test.finished).toBe(finished);
+    expect(saved().test.finished).toBe(finished);
+  });
+
+  it('writes the finished test over an older copy a closed tab left in storage', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    // The other tab saved its copy of the unfinished test and closed before hearing of the finish.
+    otherTabWrites({ test: aTest({ seed, started }) });
+    expect(store.test.finished).toBe(finished);
+    expect(saved().test.finished).toBe(finished);
+    expect(saved().history).toHaveLength(1);
+  });
+
+  it('repairs the stored finished test with the merged practice, not the stale one', async () => {
+    const { startTest, finishTest, startPractice, store, flushSync } = await openTab();
+    startTest('abc');
+    startPractice();
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const finished = store.test.finished;
+    // The other tab's stale copy still has the test running, but its practice is further along.
+    otherTabWrites({ test: aTest({ seed, started }), practice: { ...store.practice, done: 5, right: 3 } });
+    // Right away, before any later save: the first write back already holds both.
+    expect(saved().test.finished).toBe(finished);
+    expect(saved().practice.done).toBe(5);
+  });
+
+  it('merges a stale save even when storage cannot be read back', async () => {
+    const { startTest, finishTest, startPractice, store, flushSync } = await openTab();
+    startTest('abc');
+    startPractice();
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    const stale = JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed, started }), history: [], practice: { ...store.practice, done: 5, right: 3 }, log: [] });
+    const read = vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new DOMException('denied', 'SecurityError');
+    });
+    try {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: stale, storageArea: localStorage }));
+      expect(store.practice.done).toBe(5);
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  it('merges what storage holds now when an event for an older save arrives late', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    // Another tab started a new test since, and saved it; this tab has not heard of that yet.
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed: 'new', started: 5000, answers: [3, ...Array(TEST_LENGTH - 1).fill(null)] }), history: [], practice: null, log: [] }));
+    // The event for an older save of that tab, with the theme changed, comes first.
+    const older = JSON.stringify({ generator: GENERATOR, theme: 'dark', test: aTest({ seed, started }), history: [], practice: null, log: [] });
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: older, storageArea: localStorage }));
+    flushSync();
+    expect(saved().test.seed).toBe('new');
+    expect(saved().test.answers[0]).toBe(3);
+  });
+
+  it('does not bring back a save that was cleared before its event arrived', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    localStorage.clear();
+    const older = JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed, started }), history: [], practice: null, log: [] });
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: older, storageArea: localStorage }));
+    flushSync();
+    expect(localStorage.getItem('raven')).toBe(null);
+  });
+
+  it('still takes a new test another tab started after this one finished', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    finishTest();
+    flushSync();
+    const started = store.test.started + 1000;
+    otherTabWrites({ test: aTest({ seed: 'abc', started }) });
+    expect(store.test.finished).toBe(null);
+    expect(store.test.started).toBe(started);
+  });
+
   it('ignores other keys, a damaged value, and a save from another generator', async () => {
     const { store, flushSync } = await openTab();
     window.dispatchEvent(new StorageEvent('storage', { key: 'other', newValue: JSON.stringify({ theme: 'dark' }), storageArea: localStorage }));
+    // The listener reads storage, so the damaged value has to be what storage holds.
+    localStorage.setItem('raven', '{"history":');
     window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: '{"history":', storageArea: localStorage }));
     expect(store.theme).toBe(null);
     otherTabWrites({ generator: GENERATOR - 1, test: aTest(), history: [aResult(10)] });

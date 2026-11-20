@@ -129,16 +129,18 @@ function load() {
 
 export const store = $state(load());
 
+function save() {
+  if (!canSave) return;
+  const saved = JSON.stringify(store);
+  try {
+    localStorage.setItem(KEY, saved);
+  } catch {
+    // Private browsing can block storage; the app still works for this visit.
+  }
+}
+
 $effect.root(() => {
-  $effect(() => {
-    if (!canSave) return;
-    const saved = JSON.stringify(store);
-    try {
-      localStorage.setItem(KEY, saved);
-    } catch {
-      // Private browsing can block storage; the app still works for this visit.
-    }
-  });
+  $effect(save);
 });
 
 /** Both lists, newest first, with each entry once. Entries of `keep` win when two share a key. */
@@ -164,12 +166,29 @@ function takeFromOtherTab(raw) {
   // Work in progress here stays, unless it is the same test or practice the other tab moved on.
   const mine = store.test;
   const theirs = other.test;
-  if (theirs && !same(mine, theirs) && (!isRunning(mine) || (mine.seed === theirs.seed && mine.started === theirs.started && !(mine.finished && !theirs.finished)))) store.test = theirs;
+  let repair = false;
+  if (theirs && !same(mine, theirs)) {
+    const sameTest = mine && mine.seed === theirs.seed && mine.started === theirs.started;
+    // An older copy of a test finished here must not reopen it; a finish from the other tab still counts.
+    if (sameTest ? !mine.finished || theirs.finished : !isRunning(mine)) store.test = theirs;
+    // Nothing here changed, so no save follows: the finished test has to be written over the older copy the other tab left.
+    else repair = sameTest;
+  }
   if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
+  if (repair) save();
 }
 
 addEventListener('storage', (event) => {
-  if (event.storageArea === localStorage && event.key === KEY && event.newValue) takeFromOtherTab(event.newValue);
+  if (event.storageArea !== localStorage || event.key !== KEY || !event.newValue) return;
+  // An event can arrive after later saves: merge what storage holds now, which is never older than the event's value.
+  let current = event.newValue;
+  try {
+    current = localStorage.getItem(KEY);
+  } catch {
+    // Storage unreadable: the event's own value is the best there is.
+  }
+  // A save cleared since the event has nothing left to merge.
+  if (current) takeFromOtherTab(current);
 });
 
 const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);
