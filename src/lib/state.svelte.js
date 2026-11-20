@@ -175,17 +175,19 @@ function takeFromOtherTab(raw) {
     else repair = sameTest;
   }
   if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
-  if (repair) {
-    try {
-      if (localStorage.getItem(KEY) === raw) save();
-    } catch {
-      // Storage unreadable: the merge above still holds in memory.
-    }
-  }
+  if (repair) save();
 }
 
 addEventListener('storage', (event) => {
-  if (event.storageArea === localStorage && event.key === KEY && event.newValue) takeFromOtherTab(event.newValue);
+  if (event.storageArea !== localStorage || event.key !== KEY || !event.newValue) return;
+  // An event can arrive after later saves: merge what storage holds now, which is never older than the event's value.
+  let current = event.newValue;
+  try {
+    current = localStorage.getItem(KEY) ?? current;
+  } catch {
+    // Storage unreadable: the event's own value is the best there is.
+  }
+  takeFromOtherTab(current);
 });
 
 const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);

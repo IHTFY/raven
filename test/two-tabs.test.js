@@ -177,6 +177,23 @@ describe('two tabs', () => {
     }
   });
 
+  it('merges what storage holds now when an event for an older save arrives late', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    // Another tab started a new test since, and saved it; this tab has not heard of that yet.
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed: 'new', started: 5000, answers: [3, ...Array(TEST_LENGTH - 1).fill(null)] }), history: [], practice: null, log: [] }));
+    // The event for an older save of that tab, with the theme changed, comes first.
+    const older = JSON.stringify({ generator: GENERATOR, theme: 'dark', test: aTest({ seed, started }), history: [], practice: null, log: [] });
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: older, storageArea: localStorage }));
+    flushSync();
+    expect(saved().test.seed).toBe('new');
+    expect(saved().test.answers[0]).toBe(3);
+  });
+
   it('still takes a new test another tab started after this one finished', async () => {
     const { startTest, finishTest, store, flushSync } = await openTab();
     startTest('abc');
