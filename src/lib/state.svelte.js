@@ -183,11 +183,12 @@ addEventListener('storage', (event) => {
   // An event can arrive after later saves: merge what storage holds now, which is never older than the event's value.
   let current = event.newValue;
   try {
-    current = localStorage.getItem(KEY) ?? current;
+    current = localStorage.getItem(KEY);
   } catch {
     // Storage unreadable: the event's own value is the best there is.
   }
-  takeFromOtherTab(current);
+  // A save cleared since the event has nothing left to merge.
+  if (current) takeFromOtherTab(current);
 });
 
 const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);

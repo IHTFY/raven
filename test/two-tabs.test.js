@@ -194,6 +194,20 @@ describe('two tabs', () => {
     expect(saved().test.answers[0]).toBe(3);
   });
 
+  it('does not bring back a save that was cleared before its event arrived', async () => {
+    const { startTest, finishTest, store, flushSync } = await openTab();
+    startTest('abc');
+    flushSync();
+    const { seed, started } = store.test;
+    finishTest();
+    flushSync();
+    localStorage.clear();
+    const older = JSON.stringify({ generator: GENERATOR, theme: null, test: aTest({ seed, started }), history: [], practice: null, log: [] });
+    window.dispatchEvent(new StorageEvent('storage', { key: 'raven', newValue: older, storageArea: localStorage }));
+    flushSync();
+    expect(localStorage.getItem('raven')).toBe(null);
+  });
+
   it('still takes a new test another tab started after this one finished', async () => {
     const { startTest, finishTest, store, flushSync } = await openTab();
     startTest('abc');
