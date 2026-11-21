@@ -2,7 +2,7 @@
   import { noteGameFinished } from '../ads.js';
   import { go, shareUrl } from '../router.svelte.js';
   import { duration, shortDate } from '../format.js';
-  import { elapsed, puzzlesFor, startTest, store } from '../state.svelte.js';
+  import { elapsed, prepareTest, puzzlesFor, startTest, store } from '../state.svelte.js';
   import { benchmarkOf } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import CountUp from './CountUp.svelte';
@@ -33,6 +33,9 @@
     const right = puzzles.slice(from, to).filter((_, j) => outcome(from + j) === 'right').length;
     return { label, right, total: to - from };
   });
+
+  // Build the next test while these results are read, so "New test" starts at once.
+  $effect(() => prepareTest());
 
   let reviewing = $state(null);
   let toast = $state(null);

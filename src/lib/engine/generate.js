@@ -163,13 +163,24 @@ function arrange(puzzles) {
   return out;
 }
 
+/**
+ * Builds a full test a puzzle at a time, so the work can be spread over idle moments. Each call of the
+ * returned function adds one puzzle; the call that adds the last one returns the test.
+ */
+export function testBuilder(seed) {
+  const puzzles = [];
+  return () => {
+    const i = puzzles.length;
+    puzzles.push(puzzleFrom(i ? TEST_PLANS : PLANS, `${seed}/${i}`, target(i), puzzles.at(-1)?.group));
+    return puzzles.length === TEST_LENGTH ? arrange(puzzles) : null;
+  };
+}
+
 /** A full test, easiest first, with at most one puzzle whose rows (or columns) are each one picture repeated. */
 export function generateTest(seed) {
-  let previous;
-  const puzzles = range(0, TEST_LENGTH - 1).map((i) => {
-    const puzzle = puzzleFrom(i ? TEST_PLANS : PLANS, `${seed}/${i}`, target(i), previous);
-    previous = puzzle.group;
-    return puzzle;
-  });
-  return arrange(puzzles);
+  const next = testBuilder(seed);
+  for (;;) {
+    const test = next();
+    if (test) return test;
+  }
 }

@@ -15,7 +15,7 @@ async function open({ hash = '', saved = null, broken = {} } = {}) {
   };
   vi.doMock('../src/lib/engine/generate.js', async (importActual) => {
     const actual = await importActual();
-    return { ...actual, ...(broken.test && { generateTest: fail('test') }), ...(broken.practice && { generatePuzzle: fail('practice') }) };
+    return { ...actual, ...(broken.test && { testBuilder: () => fail('test') }), ...(broken.practice && { generatePuzzle: fail('practice') }) };
   });
   svelte = await import('svelte');
   const [{ default: App }, state] = await Promise.all([import('../src/App.svelte'), import('../src/lib/state.svelte.js')]);
