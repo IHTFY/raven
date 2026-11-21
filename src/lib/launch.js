@@ -53,7 +53,7 @@ export function playLaunch(overlay) {
       [
         { transform: 'none', opacity: 1, easing: EASE },
         { opacity: 1, offset: 0.6 },
-        { transform: `translateY(${to.top + to.height / 2 - (from.top + from.height / 2)}px) scale(${grow})`, opacity: 0 },
+        { transform: `translate(${to.left + to.width / 2 - (from.left + from.width / 2)}px, ${to.top + to.height / 2 - (from.top + from.height / 2)}px) scale(${grow})`, opacity: 0 },
       ],
       { duration: FLY, fill: 'forwards' },
     ),
