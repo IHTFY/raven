@@ -61,7 +61,7 @@
         const root = document.documentElement;
         try {
           const nav = performance.getEntriesByType('navigation')[0];
-          const app = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+          const app = matchMedia('(display-mode: standalone)').matches;
           if (!app || location.hash || nav?.type !== 'navigate' || sessionStorage.getItem('launched')) return;
           sessionStorage.setItem('launched', '1');
         } catch {
@@ -72,6 +72,7 @@
           clearTimeout(fallback);
           root.classList.remove('launching');
           document.getElementById('launch')?.remove();
+          document.getElementById('app').inert = false;
         };
         // The game never stays hidden behind the copy if it fails to call launchExit.
         const fallback = setTimeout(end, 4000);
@@ -83,6 +84,8 @@
           if (!overlay) return;
           // Whatever fails here only skips the motion: the copy never stays up, and the caller carries on.
           try {
+            // Nothing behind the copy takes keys until it has gone.
+            document.getElementById('app').inert = true;
             let animations = [];
             if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
               try {
@@ -94,7 +97,10 @@
             if (!animations.length) {
               animations = [overlay.animate({ opacity: [1, 0] }, { duration: 200, easing: 'ease-out', fill: 'forwards' })];
             }
-            overlay.addEventListener('pointerdown', () => animations.forEach((a) => a.finish()), { once: true });
+            // A tap skips to the end, and so does a rotation, which moves what the pieces fly to.
+            const skip = () => animations.forEach((a) => a.finish());
+            overlay.addEventListener('pointerdown', skip, { once: true });
+            addEventListener('resize', skip, { once: true });
             Promise.all(animations.map((a) => a.finished)).then(end, end);
           } catch {
             end();
