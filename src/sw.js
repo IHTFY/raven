@@ -25,21 +25,26 @@ async function install() {
 
 self.addEventListener('install', (event) => event.waitUntil(install()));
 
+// The previous version's cache stays until the next deploy: a tab that loaded the previous page just
+// before this worker took over still asks for that page's bundles, which the deploy removed from the site.
+// caches.keys() lists caches in the order they were created.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE).map((key) => caches.delete(key))),
-      )
+      .then((keys) => {
+        const older = keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE);
+        return Promise.all(older.slice(0, -1).map((key) => caches.delete(key)));
+      })
       .then(() => self.clients.claim()),
   );
 });
 
-// A cache that can't be opened or read (storage blocked or full) counts as a miss.
-async function cached(request) {
+// A cache that can't be opened or read (storage blocked or full) counts as a miss. Pages and other
+// unhashed files come from this version's cache only; hashed bundles may come from the previous one.
+async function cached(request, anyVersion = false) {
   try {
-    return await (await caches.open(CACHE)).match(request);
+    return anyVersion ? await caches.match(request) : await (await caches.open(CACHE)).match(request);
   } catch {
     return undefined;
   }
@@ -63,7 +68,7 @@ async function networkElseCache(request, fallback) {
 
 // Build output with a hash in its name never changes.
 async function cacheElseNetwork(event) {
-  const hit = await cached(event.request);
+  const hit = await cached(event.request, true);
   if (hit) return hit;
   const response = await fetch(event.request);
   if (response.ok) {
