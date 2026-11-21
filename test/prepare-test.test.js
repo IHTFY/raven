@@ -7,15 +7,19 @@ let svelte;
 let state;
 /** Puzzles built so far: each one starts its own random number generator. */
 let built;
+/** Makes every puzzle fail to build. */
+let broken;
 
 async function load() {
   vi.resetModules();
   built = 0;
+  broken = false;
   vi.doMock('../src/lib/engine/rng.js', async (importActual) => {
     const actual = await importActual();
     return {
       ...actual,
       createRng(seed) {
+        if (broken) throw new Error(`No puzzle found for seed ${seed}`);
         built++;
         return actual.createRng(seed);
       },
@@ -119,6 +123,16 @@ describe('a test is built before the tap that starts it', () => {
     expect(puzzles).toEqual(generateTest('abc'));
     vi.advanceTimersByTime(1000);
     expect(built, 'nothing is left for the idle steps').toBe(TEST_LENGTH);
+  });
+
+  it('leaves a build error for the tap that starts the test, where the screen can show it', async () => {
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+    await load();
+    broken = true;
+    state.prepareTest('abc');
+    vi.advanceTimersByTime(1000);
+    expect(logged).toHaveBeenCalledOnce();
+    expect(() => state.puzzlesFor('abc')).toThrow('No puzzle found');
   });
 
   it('stops building when told to', async () => {

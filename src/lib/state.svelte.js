@@ -379,9 +379,15 @@ export function prepareTest(seed = upcoming) {
   let id = later(function step(idle) {
     // The next idle callback can be 50 ms away, so keep building while this one has time left.
     // A browser without idle callbacks gives no time budget, so it builds one puzzle per turn.
-    do {
-      if (tests.has(seed) || buildStep(seed)) return;
-    } while (idle?.timeRemaining() > 0);
+    try {
+      do {
+        if (tests.has(seed) || buildStep(seed)) return;
+      } while (idle?.timeRemaining() > 0);
+    } catch (error) {
+      // No screen boundary catches an error here. Stop, and leave it to the tap that starts the test, which shows it.
+      console.error(error);
+      return;
+    }
     id = later(step);
   });
   return () => (window.cancelIdleCallback ?? clearTimeout)(id);
