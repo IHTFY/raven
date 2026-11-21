@@ -32,7 +32,8 @@ function serviceWorker() {
       const urls = ['/', ...files.filter((file) => file !== 'index.html').map((file) => `/${file}`)];
       const source = readFileSync(new URL('./src/sw.js', import.meta.url), 'utf8')
         .replace('__VERSION__', hash.digest('hex').slice(0, 12))
-        .replace('__PRECACHE__', JSON.stringify(urls));
+        .replace('__PRECACHE__', JSON.stringify(urls))
+        .replace('__SHELL_HASH__', createHash('sha256').update(readFileSync(join(outDir, 'index.html'))).digest('hex'));
       writeFileSync(join(outDir, 'sw.js'), source);
     },
   };

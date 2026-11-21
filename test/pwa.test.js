@@ -1,5 +1,6 @@
 // Builds the site and checks that it can be installed and played offline.
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -46,6 +47,8 @@ describe('installable build', () => {
     expect(precache.some((url) => /^\/assets\/.+\.js$/.test(url))).toBe(true);
     expect(worker).not.toContain('__VERSION__');
     expect(worker).not.toContain('__PRECACHE__');
+    const shellHash = createHash('sha256').update(readFileSync(join(out, 'index.html'))).digest('hex');
+    expect(worker).toContain(`const SHELL_HASH = '${shellHash}';`);
   });
 
   it('leaves other sites alone and registers the worker only in the production build', () => {

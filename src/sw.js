@@ -1,18 +1,29 @@
 // Service worker template. The build (see vite.config.js) fills in VERSION and PRECACHE and writes it to dist/sw.js.
 const VERSION = '__VERSION__';
 const PRECACHE = __PRECACHE__;
+// SHA-256 of the built index.html, so install can tell when a CDN edge still serves the previous page.
+const SHELL_HASH = '__SHELL_HASH__';
 const PREFIX = 'raven-';
 const CACHE = `${PREFIX}${VERSION}`;
 
-self.addEventListener('install', (event) => {
+async function install() {
+  const cache = await caches.open(CACHE);
   // Fetch past the HTTP cache so a new version never precaches stale files.
-  event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting()),
-  );
-});
+  await cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })));
+  // A page from another deploy would point at bundles this cache doesn't hold. Failing the install
+  // keeps the previous worker and its cache; the browser tries again on a later visit.
+  const shell = await (await cache.match('/')).arrayBuffer();
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', shell))]
+    .map((byte) => byte.toString(16).padStart(2, '0'))
+    .join('');
+  if (hash !== SHELL_HASH) {
+    await caches.delete(CACHE);
+    throw new Error('Cached page is from another deploy');
+  }
+  await self.skipWaiting();
+}
+
+self.addEventListener('install', (event) => event.waitUntil(install()));
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -37,13 +48,17 @@ async function cached(request) {
 // The cached copy is the one precached with this version's assets, so it is never replaced by a
 // live response: a page from a newer deploy could reference assets this cache doesn't hold.
 async function networkElseCache(request, fallback) {
+  let response;
   try {
-    return await fetch(request);
+    response = await fetch(request);
   } catch (error) {
-    const response = await cached(fallback);
-    if (response) return response;
+    const copy = await cached(fallback);
+    if (copy) return copy;
     throw error;
   }
+  // A server error gets the cached copy when there is one.
+  if (response.status >= 500) return (await cached(fallback)) ?? response;
+  return response;
 }
 
 // Build output with a hash in its name never changes.
