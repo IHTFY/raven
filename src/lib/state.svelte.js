@@ -3,7 +3,7 @@
  * a seed always rebuilds the same ones.
  */
 
-import { EASIEST, GENERATOR, GROUPS, HARDEST, TEST_LENGTH, generatePuzzle, generateTest } from './engine/generate.js';
+import { EASIEST, GENERATOR, GROUPS, HARDEST, TEST_LENGTH, generatePuzzle, testBuilder } from './engine/generate.js';
 import { isSeed, randomSeed } from './engine/rng.js';
 import { go } from './router.svelte.js';
 import { flushSync, untrack } from 'svelte';
@@ -343,20 +343,55 @@ export function toggleTheme() {
 }
 
 const tests = new Map();
+/** The test being built: its seed, and the function that adds its next puzzle. */
+let partial = null;
+
+/** Add one puzzle to a seed's test, carrying on a build already under way. Returns whether the test is complete. */
+function buildStep(seed) {
+  if (partial?.seed !== seed) partial = { seed, next: testBuilder(seed) };
+  const puzzles = partial.next();
+  if (!puzzles) return false;
+  partial = null;
+  tests.set(seed, puzzles);
+  if (tests.size > 3) tests.delete(tests.keys().next().value);
+  return true;
+}
 
 /** A test's puzzles, keeping the last few built in memory. */
 export function puzzlesFor(seed) {
-  const puzzles = tests.get(seed) ?? generateTest(seed);
+  while (!tests.has(seed)) buildStep(seed);
+  const puzzles = tests.get(seed);
+  // The test used last is the last to leave.
   tests.delete(seed);
   tests.set(seed, puzzles);
-  if (tests.size > 3) tests.delete(tests.keys().next().value);
   return puzzles;
 }
 
 let upcoming = randomSeed();
 
-/** Build the next new test ahead of time, so starting it is instant. */
-export const prepareTest = () => puzzlesFor(upcoming);
+/**
+ * Build a test ahead of time (the next new one, unless given a seed), so starting it is instant. The work
+ * runs a puzzle at a time while the browser is idle, so a frame or a tap never waits for the whole build,
+ * and a tap that comes first builds only what's left. Returns a function that stops the work.
+ */
+export function prepareTest(seed = upcoming) {
+  const later = window.requestIdleCallback ?? setTimeout;
+  let id = later(function step(idle) {
+    // The next idle callback can be 50 ms away, so keep building while this one has time left.
+    // A browser without idle callbacks gives no time budget, so it builds one puzzle per turn.
+    try {
+      do {
+        if (tests.has(seed) || buildStep(seed)) return;
+      } while (idle?.timeRemaining() > 0);
+    } catch (error) {
+      // No screen boundary catches an error here. Stop, and leave it to the tap that starts the test, which shows it.
+      console.error(error);
+      return;
+    }
+    id = later(step);
+  });
+  return () => (window.cancelIdleCallback ?? clearTimeout)(id);
+}
 
 export function startTest(seed = upcoming) {
   if (seed === upcoming) upcoming = randomSeed();

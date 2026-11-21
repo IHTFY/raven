@@ -47,10 +47,8 @@
     return () => clearInterval(id);
   });
 
-  $effect(() => {
-    const id = (window.requestIdleCallback ?? setTimeout)(prepareTest);
-    return () => (window.cancelIdleCallback ?? clearTimeout)(id);
-  });
+  // Build the test a tap here starts ahead of the tap. That is the shared test if there is one, and the next new test otherwise.
+  $effect(() => prepareTest(shared ?? undefined));
 
   // Starting over loses a test in progress, so that takes a second tap.
   let confirming = $state(false);
