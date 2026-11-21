@@ -53,6 +53,19 @@ The site is whatever the `gh-pages` branch holds, so a rollback is a redeploy of
 
 Prefer a redeploy to unpublishing Pages.
 
+Rolling back to a commit from before the service worker (`src/sw.js`) needs a different step 2: browsers that installed the worker keep running it when `/sw.js` disappears. Run `pnpm exec vite build`, add this `sw.js` to `dist/` (it clears Raven's caches and unregisters itself), then publish with `pnpm exec gh-pages -d dist -t` instead of `pnpm ghdeploy`, which would rebuild and drop it:
+
+```js
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('raven-')).map((key) => caches.delete(key))))
+      .then(() => self.registration.unregister()),
+  );
+});
+```
+
 ## Incidents
 
 There is no user data on a server to leak. The likely incidents are a broken deploy (roll back as above), a compromised dependency in the build (roll back, then pin or replace it), or a leaked deploy credential (revoke it in GitHub settings, then check `gh-pages` history for pushes you didn't make).
