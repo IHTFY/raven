@@ -1,12 +1,21 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 
 let app;
 let unmount;
+let flushSync;
+// The test DOM's animations reject when a puzzle or sheet is torn down mid-transition; the transitions are not what is under test.
+const animate = Element.prototype.animate;
+beforeAll(() => {
+  Element.prototype.animate = () => ({ cancel() {}, finished: Promise.resolve(), currentTime: 0, effect: null });
+});
+afterAll(() => {
+  Element.prototype.animate = animate;
+});
 /** The app state, the Quiz screen, and the copy of Svelte they share, fresh after a module reset. */
 async function open() {
   const [state, quiz, svelte] = await Promise.all([import('../src/lib/state.svelte.js'), import('../src/lib/components/Quiz.svelte'), import('svelte')]);
-  ({ unmount } = svelte);
+  ({ unmount, flushSync } = svelte);
   state.startTest('abc');
   app = svelte.mount(quiz.default, { target: document.body });
   svelte.flushSync();
@@ -112,7 +121,9 @@ it('ignores a pick on a puzzle that has just appeared after an answer, by tap or
 
   tapA();
   vi.advanceTimersByTime(280);
+  flushSync();
   expect(store.test.current).toBe(1);
+  expect(document.querySelector('.count').textContent).toContain('2 /');
 
   // A second tap of a double tap lands on the new puzzle before it can have been seen.
   tapA();
@@ -155,4 +166,42 @@ it('does not answer from a repeating key press', async () => {
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', repeat: true }));
 
   expect(store.test.answers[0]).toBe(null);
+});
+
+it('still saves an answer after the overview was opened and closed during the advance delay', async () => {
+  const store = await open();
+
+  document.querySelector('button[aria-label="Option A"]').click();
+  vi.advanceTimersByTime(100);
+  document.querySelector('button[aria-label="All puzzles"]').click();
+  flushSync();
+  vi.advanceTimersByTime(500);
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+  flushSync();
+  document.querySelector('button[aria-label="Option B"]').click();
+
+  expect(store.test.current).toBe(0);
+  expect(store.test.answers[0]).toBe(1);
+});
+
+it('keeps a guard that moving past the last puzzle did not end, and drops it when another tab changes the puzzle', async () => {
+  const store = await open();
+  const pick = (k) => window.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+
+  // Another tab moves this test to a different puzzle during the guard: a pick here is saved.
+  pick('a');
+  vi.advanceTimersByTime(280);
+  expect(store.test.current).toBe(1);
+  store.test.current = 5;
+  pick('b');
+  expect(store.test.answers[5]).toBe(1);
+
+  // Right on the final puzzle changes nothing, so it keeps a guard in force there.
+  store.test.current = 33;
+  pick('c');
+  vi.advanceTimersByTime(280);
+  expect(store.test.current).toBe(34);
+  pick('ArrowRight');
+  pick('d');
+  expect(store.test.answers[34]).toBe(null);
 });

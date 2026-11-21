@@ -60,24 +60,31 @@
     }
   }
 
-  // The settle guard (below) covers only the tap that follows an automatic advance, so any move or opening the overview by hand ends it.
+  // After a pick, move on once the choice has had a moment to show,
+  // unless you've already moved yourself. Past the deadline, the timer ends the test.
+  let advance;
+
+  // A puzzle reached by that advance ignores picks for a moment, so a double tap on the last one can't answer a puzzle that hasn't been seen.
+  // The guard belongs to that puzzle only: moving by hand, or another tab changing the puzzle, ends it.
+  const SETTLE_MS = 400;
+  let settleAt = -1;
   let settleUntil = 0;
+
   const move = (i) => {
-    settleUntil = 0;
-    test.current = Math.max(0, Math.min(last, i));
+    const next = Math.max(0, Math.min(last, i));
+    if (next === test.current) return;
+    clearTimeout(advance);
+    settleAt = -1;
+    test.current = next;
   };
   const showOverview = () => {
-    settleUntil = 0;
+    clearTimeout(advance);
+    settleAt = -1;
     overview = true;
   };
 
-  // After a pick, move on once the choice has had a moment to show,
-  // unless you've already moved yourself. Past the deadline, the timer ends the test.
-  // A puzzle reached this way ignores picks for a moment, so a double tap on the last one can't answer a puzzle that hasn't been seen.
-  const SETTLE_MS = 400;
-  let advance;
   function choose(k) {
-    if (performance.now() < settleUntil) return;
+    if (test.current === settleAt && performance.now() < settleUntil) return;
     if (!answerTest(k)) return;
     const session = test;
     const at = test.current;
@@ -87,6 +94,7 @@
       if (at === last) overview = true;
       else {
         move(at + 1);
+        settleAt = at + 1;
         settleUntil = performance.now() + SETTLE_MS;
       }
     }, 280);
