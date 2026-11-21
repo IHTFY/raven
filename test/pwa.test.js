@@ -12,7 +12,8 @@ const read = (file) => readFileSync(join(out, file), 'utf8');
 beforeAll(() => {
   const { VITEST, ...env } = process.env;
   execFileSync(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', out, '--emptyOutDir'], {
-    env,
+    // Vitest sets NODE_ENV=test, which would build without the production-only registration.
+    env: { ...env, NODE_ENV: 'production' },
     stdio: 'pipe',
   });
 }, 120_000);
@@ -51,8 +52,9 @@ describe('installable build', () => {
     expect(worker).toContain(`const SHELL_HASH = '${shellHash}';`);
   });
 
-  it('leaves other sites alone and registers the worker only in the production build', () => {
+  it('leaves other sites alone and registers the worker from the production bundle', () => {
     expect(read('sw.js')).toContain('url.origin !== self.location.origin');
-    expect(readFileSync('src/main.js', 'utf8')).toContain('import.meta.env.PROD');
+    const bundles = readdirSync(join(out, 'assets')).filter((file) => file.endsWith('.js'));
+    expect(bundles.some((file) => /serviceWorker\.register\(["'`]\/sw\.js["'`]\)/.test(read(join('assets', file))))).toBe(true);
   });
 });
