@@ -4,7 +4,7 @@
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
-  import { TEST_MINUTES, canReview, currentTheme, clearUnbuildable, expireTest, isRunning, prepareTest, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { TEST_MINUTES, canReview, currentTheme, clearUnbuildable, expireTest, isRunning, prepareTest, resultKey, startTest, store, toggleTheme } from '../state.svelte.js';
   import { currentBenchmarks, firstTry } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
@@ -109,7 +109,7 @@
       <div class="row">
         {#each currentBenchmarks() as b (b.id)}
           {@const first = firstTry(b, store.history)}
-          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${first.date}`) : begin(b.seed))} aria-label="{b.name}{first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
+          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : begin(b.seed))} aria-label="{b.name}{first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
             <span>{b.name.replace('Benchmark ', '')}</span>
             <span class="muted tabular">{first ? `${first.score}/${first.total}` : 'Take'}</span>
           </button>
@@ -122,9 +122,9 @@
     <section class="history">
       <h2 class="muted small">Recent tests <span><button class="all" onclick={() => go('stats')}>Stats</button><button class="all" onclick={() => go('history')}>See all <Icon name="next" size={14} /></button></span></h2>
       <ol>
-        {#each store.history.slice(0, hasAd ? 2 : 3) as h (h.date)}
+        {#each store.history.slice(0, hasAd ? 2 : 3) as h (resultKey(h))}
           <li class="tabular">
-            <button class="past" disabled={!canReview(h)} onclick={() => go(`history/${h.date}`)}>
+            <button class="past" disabled={!canReview(h)} onclick={() => go(`history/${resultKey(h)}`)}>
               <b>{h.score}</b><span class="muted">/{h.total}</span>
               <span class="muted">{duration(h.seconds)} · {shortDate(h.date)}</span>
             </button>

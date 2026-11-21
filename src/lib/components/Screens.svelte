@@ -2,7 +2,7 @@
   import { isSeed } from '../engine/rng.js';
   import { rise } from '../motion.js';
   import { route } from '../router.svelte.js';
-  import { canReview, expireTest, pastTest, store } from '../state.svelte.js';
+  import { canReview, expireTest, pastTest, resultKey, store } from '../state.svelte.js';
   import History from './History.svelte';
   import Stats from './Stats.svelte';
   import Home from './Home.svelte';
@@ -14,13 +14,13 @@
   expireTest();
 
   const view = $derived.by(() => {
-    const [page, seed] = route.path;
+    const [page, seed, pastSeed] = route.path;
     if (page === 'practice') return { screen: 'practice' };
     if (page === 'stats') return { screen: 'stats' };
     if (page === 'history') {
-      // Only a saved test can be opened, so the date in the link is looked up rather than trusted.
-      const past = seed && pastTest(seed);
-      return past && canReview(past) ? { screen: 'past', key: past.date, past } : { screen: 'history' };
+      // Only a saved test can be opened, so the date and seed in the link are looked up rather than trusted.
+      const past = seed && pastTest(seed, pastSeed);
+      return past && canReview(past) ? { screen: 'past', key: resultKey(past), past } : { screen: 'history' };
     }
     if (page === 'test') {
       const test = store.test;

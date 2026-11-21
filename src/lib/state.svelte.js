@@ -6,7 +6,7 @@
 import { EASIEST, GENERATOR, GROUPS, HARDEST, TEST_LENGTH, generatePuzzle, generateTest } from './engine/generate.js';
 import { isSeed, randomSeed } from './engine/rng.js';
 import { go } from './router.svelte.js';
-import { flushSync } from 'svelte';
+import { flushSync, untrack } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
 import { MediaQuery } from 'svelte/reactivity';
 
@@ -68,6 +68,9 @@ const isResult = (h) =>
   (h.kinds === undefined || isKinds(h.kinds, h.total)) &&
   (h.outcomes === undefined || isOutcomes(h.outcomes, h.total));
 
+/** What tells one past test from another, in the history and in links. Two tests can end in the same millisecond, so the date alone doesn't. */
+export const resultKey = (h) => `${h.date}/${h.seed}`;
+
 /** One answered practice puzzle, for the statistics. */
 const isAttempt = (a) => isKinds([a?.kind], 1) && typeof a.right === 'boolean' && areNumbers(a.seconds) && a.seconds >= 0 && a.seconds <= PRACTICE_MAX_SECONDS && isTarget(a.target) && isDate(a.date);
 
@@ -80,18 +83,17 @@ const isPractice = (p) =>
   (p.group === null || GROUPS.includes(p.group));
 
 /** The state in a saved value, keeping only the parts that match what the screens expect. */
-function parse(raw) {
-  const saved = JSON.parse(raw);
+function parse(saved) {
   const state = blank();
   // A save that doesn't match what the screens expect would break them on every visit, so keep only the parts that do.
   if (saved?.theme === 'light' || saved?.theme === 'dark') state.theme = saved.theme;
-  // One bad record drops only itself. Screens and links find a past test by its date, so only the first result with a date stays.
+  // One bad record drops only itself. Screens and links find a past test by its key, so only the first result with a key stays.
   if (Array.isArray(saved?.history)) {
-    const dates = new Set();
+    const keys = new Set();
     state.history = saved.history
       .filter((h) => {
-        if (!isResult(h) || dates.has(h.date)) return false;
-        dates.add(h.date);
+        if (!isResult(h) || keys.has(resultKey(h))) return false;
+        keys.add(resultKey(h));
         return true;
       })
       .slice(0, HISTORY_LENGTH)
@@ -110,6 +112,21 @@ function parse(raw) {
 /** False when reading the save failed, so a save may still be there: writing then would replace it with this visit's blank state. */
 let canSave = true;
 
+// Every tab saves the whole state under one key, so a save first merges with what storage holds at that moment.
+/** The parts of a save that one tab can change under another: results and practice answers are only ever added. */
+const held = (state) => structuredClone({ theme: state.theme, test: state.test, practice: state.practice });
+/** Storage as this tab last read or wrote it. Whatever differs from it here is this tab's own change; whatever differs from it in storage is another tab's. */
+let base = held(blank());
+let baseRaw = null;
+/** A test this tab plays on, or still shows the results of, while storage holds a newer one from another tab. */
+let aside = null;
+/** The save in storage when a newer generator wrote it. This tab then only adds its results, practice answers and theme to it. */
+let newer = null;
+/** Records this tab has added to a newer generator's save, so each is added once even if that generator drops it. */
+const added = new Set();
+
+const fromNewer = (saved) => Number.isInteger(saved?.generator) && saved.generator > GENERATOR;
+
 function load() {
   let raw;
   try {
@@ -120,7 +137,12 @@ function load() {
     return blank();
   }
   try {
-    return parse(raw);
+    const saved = JSON.parse(raw);
+    const state = parse(saved);
+    base = held(state);
+    baseRaw = raw;
+    newer = fromNewer(saved) ? saved : null;
+    return state;
   } catch {
     // A damaged save: start over.
     return blank();
@@ -129,66 +151,167 @@ function load() {
 
 export const store = $state(load());
 
-function save() {
-  if (!canSave) return;
-  const saved = JSON.stringify(store);
-  try {
-    localStorage.setItem(KEY, saved);
-  } catch {
-    // Private browsing can block storage; the app still works for this visit.
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Both lists as one, newest first, with each record once. A record of `first` wins when two share a key. */
+function union(first, second, keyOf, limit) {
+  const records = new Map();
+  for (const x of [...first, ...second]) if (!records.has(keyOf(x))) records.set(keyOf(x), x);
+  return [...records]
+    .sort(([ka, a], [kb, b]) => b.date - a.date || (ka < kb ? -1 : 1))
+    .slice(0, limit)
+    .map(([, x]) => x);
+}
+
+const sameAttempt = (a, b) => Boolean(a && b) && a.seed === b.seed && a.started === b.started;
+/** Whether test `a` started after test `b`. The seed settles a tie, so every tab picks the same one. */
+const startedAfter = (a, b) => a.started > b.started || (a.started === b.started && a.seed > b.seed);
+const pick = (mine, before, theirs) => (mine !== before ? mine : theirs);
+
+/**
+ * One saved test from this tab's and storage's. `shown` is the test for this tab's screens, `stored` the one to save,
+ * and `dropped` the key of a result this tab recorded for a test another tab had already finished.
+ */
+function mergeTest(mine, theirs) {
+  const both = (test) => ({ shown: test, stored: test });
+  if (sameAttempt(mine, theirs)) {
+    // The first finish to reach storage stands: its result is already in the history.
+    if (theirs.finished) return { ...both(theirs), dropped: mine.finished && mine.finished !== theirs.finished ? resultKey({ date: mine.finished, seed: mine.seed }) : null };
+    if (mine.finished) return both(mine);
+    // Both tabs are in the same running test: each question takes the answer changed since the last save, and time spent adds up.
+    const before = sameAttempt(base.test, mine) ? base.test : theirs;
+    return both({
+      ...mine,
+      answers: mine.answers.map((answer, i) => pick(answer, before.answers[i], theirs.answers[i])),
+      times: mine.times.map((seconds, i) => (seconds === before.times[i] ? theirs.times[i] : Math.min(MAX_SECONDS, Math.max(0, Math.round((theirs.times[i] + seconds - before.times[i]) * 10) / 10)))),
+      current: pick(mine.current, before.current, theirs.current),
+    });
   }
+  // A test cleared in one tab is gone from both, unless a different one has been started since.
+  if (!mine) return both(sameAttempt(base.test, theirs) && !aside ? null : theirs);
+  if (!theirs) return both(sameAttempt(base.test, mine) ? null : mine);
+  // Two different tests. One this tab started since its last save replaces the one it knew storage held, whatever the clock says.
+  // Otherwise storage keeps the one started last, while a test running here plays on in this tab,
+  // and a finished one stays on screen until another tab starts a new test.
+  const mineNew = !sameAttempt(mine, base.test) && !sameAttempt(mine, aside);
+  const theirsNew = !sameAttempt(theirs, base.test);
+  const stored = (mineNew && !theirsNew) || startedAfter(mine, theirs) ? mine : theirs;
+  return { shown: stored === mine || isRunning(mine) || !theirsNew ? mine : theirs, stored };
+}
+
+/** One practice session from this tab's and storage's. */
+function mergePractice(mine, theirs) {
+  const before = base.practice;
+  if (same(theirs, before)) return mine;
+  if (same(mine, before)) return theirs;
+  // Both changed. A session cleared in one tab stays cleared, and one started since replaces the old one.
+  const isNew = (p) => p !== null && p.seed !== before?.seed;
+  if (!mine || !theirs || mine.seed !== theirs.seed) {
+    if (isNew(mine) !== isNew(theirs)) return isNew(mine) ? mine : theirs;
+    if (!mine || !theirs) return null;
+    // Two sessions started at once: every tab keeps the same one.
+    return mine.done > theirs.done || (mine.done === theirs.done && mine.seed > theirs.seed) ? mine : theirs;
+  }
+  // The same session answered in both tabs: go on from the puzzle further along, and count every answer.
+  const ahead = theirs.count > mine.count || (theirs.count === mine.count && theirs.choice !== null && mine.choice === null) ? theirs : mine;
+  if (before?.seed !== mine.seed) return ahead;
+  const done = Math.min(MAX_COUNT, theirs.done + Math.max(0, mine.done - before.done));
+  const right = Math.min(done, theirs.right + Math.max(0, mine.right - before.right));
+  return { ...ahead, done, right };
+}
+
+/**
+ * Merge this tab's state with what storage holds, show the result here and save it.
+ * `heard` is the value from another tab's storage event, used when storage itself can't be read.
+ */
+function sync(heard) {
+  if (heard === undefined && !canSave) return;
+  // The lists stay as they are in the store: copying a long history on every answer would cost more than the save itself.
+  const mine = { theme: store.theme, test: $state.snapshot(store.test), history: store.history, practice: $state.snapshot(store.practice), log: store.log };
+  let raw = heard;
+  try {
+    raw = localStorage.getItem(KEY);
+  } catch {
+    // Without knowing what storage holds, a save could erase it.
+    if (heard === undefined) return;
+  }
+  // A save cleared since the event has nothing left to merge.
+  if (heard !== undefined && !raw) return;
+
+  // Storage this tab has already merged holds no result or practice answer that isn't here too.
+  let theirs = { ...base, history: [], log: [] };
+  let changed = false;
+  if (raw === null) newer = null;
+  else if (raw !== baseRaw) {
+    try {
+      const saved = JSON.parse(raw);
+      theirs = parse(saved);
+      changed = true;
+      newer = fromNewer(saved) ? saved : null;
+      // Another generator's test and practice can't be used here, so they count as unchanged.
+      if (saved?.generator !== GENERATOR) Object.assign(theirs, { test: base.test, practice: base.practice });
+    } catch {
+      // A damaged save: this tab's state replaces it.
+      newer = null;
+    }
+  }
+
+  const test = mergeTest(mine.test, theirs.test);
+  aside = test.shown === test.stored ? null : test.shown;
+  // Storage's copy of a record wins a tie, so every tab ends up with the same one.
+  const kept = test.dropped ? mine.history.filter((h) => resultKey(h) !== test.dropped) : mine.history;
+  const history = changed ? union(theirs.history, kept, resultKey, HISTORY_LENGTH) : kept;
+  const shown = {
+    theme: mine.theme !== base.theme ? mine.theme : (theirs.theme ?? mine.theme),
+    test: test.shown,
+    history,
+    practice: changed ? mergePractice(mine.practice, theirs.practice) : mine.practice,
+    log: changed ? union(theirs.log, mine.log, JSON.stringify, LOG_LENGTH) : mine.log,
+  };
+  for (const [key, value] of Object.entries(shown)) if (value !== mine[key] && !same(value, mine[key])) store[key] = value;
+
+  let stored = { ...shown, test: test.stored };
+  let written;
+  let adding = [];
+  if (newer) {
+    // Only what this tab has that the newer save lacks goes in; its own test and practice stay as they are.
+    const list = (records) => (Array.isArray(records) ? records : []);
+    const lacking = (records, theirRecords, keyOf) => {
+      const there = new Set(theirRecords.map(keyOf));
+      return records.filter((x) => !there.has(keyOf(x)) && !added.has(keyOf(x)));
+    };
+    const results = lacking(history, list(newer.history).filter(isResult), resultKey);
+    const attempts = lacking(shown.log, list(newer.log).filter(isAttempt), JSON.stringify);
+    adding = [...results.map(resultKey), ...attempts.map((a) => JSON.stringify(a))];
+    written = adding.length || shown.theme !== theirs.theme ? JSON.stringify({ ...newer, theme: shown.theme, history: [...results, ...list(newer.history)], log: [...attempts, ...list(newer.log)] }) : raw;
+    stored = { ...stored, test: theirs.test, practice: theirs.practice };
+  } else written = JSON.stringify({ generator: GENERATOR, ...stored });
+
+  let inStorage = raw;
+  if (written !== raw && canSave) {
+    try {
+      localStorage.setItem(KEY, written);
+      inStorage = written;
+    } catch {
+      // Private browsing can block storage; the app still works for this visit.
+    }
+  }
+  // After a failed write storage still holds what was read, and this tab's changes stay its own.
+  if (inStorage === written) {
+    for (const key of adding) added.add(key);
+    if (newer && written !== raw) newer = JSON.parse(written);
+    base = held(stored);
+  } else base = held(theirs);
+  baseRaw = inStorage;
 }
 
 $effect.root(() => {
-  $effect(save);
+  $effect(() => sync());
 });
 
-/** Both lists, newest first, with each entry once. Entries of `keep` win when two share a key. */
-function union(keep, other, keyOf, limit) {
-  const seen = new Set(keep.map(keyOf));
-  return [...keep, ...other.filter((x) => !seen.has(keyOf(x)))].sort((a, b) => b.date - a.date).slice(0, limit);
-}
-
-/** Take in what another tab saved, so this tab's next save doesn't erase it. */
-function takeFromOtherTab(raw) {
-  let other;
-  try {
-    other = parse(raw);
-  } catch {
-    return;
-  }
-  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const history = union(store.history, other.history, (h) => h.date, HISTORY_LENGTH);
-  if (!same(history, store.history)) store.history = history;
-  const log = union(store.log, other.log, (a) => JSON.stringify(a), LOG_LENGTH);
-  if (!same(log, store.log)) store.log = log;
-  if (other.theme && other.theme !== store.theme) store.theme = other.theme;
-  // Work in progress here stays, unless it is the same test or practice the other tab moved on.
-  const mine = store.test;
-  const theirs = other.test;
-  let repair = false;
-  if (theirs && !same(mine, theirs)) {
-    const sameTest = mine && mine.seed === theirs.seed && mine.started === theirs.started;
-    // An older copy of a test finished here must not reopen it; a finish from the other tab still counts.
-    if (sameTest ? !mine.finished || theirs.finished : !isRunning(mine)) store.test = theirs;
-    // Nothing here changed, so no save follows: the finished test has to be written over the older copy the other tab left.
-    else repair = sameTest;
-  }
-  if (other.practice && !same(store.practice, other.practice) && (!store.practice || store.practice.seed === other.practice.seed)) store.practice = other.practice;
-  if (repair) save();
-}
-
 addEventListener('storage', (event) => {
-  if (event.storageArea !== localStorage || event.key !== KEY || !event.newValue) return;
-  // An event can arrive after later saves: merge what storage holds now, which is never older than the event's value.
-  let current = event.newValue;
-  try {
-    current = localStorage.getItem(KEY);
-  } catch {
-    // Storage unreadable: the event's own value is the best there is.
-  }
-  // A save cleared since the event has nothing left to merge.
-  if (current) takeFromOtherTab(current);
+  // An event can arrive after later saves, so the merge reads what storage holds now, which is never older than the event's value.
+  if (event.storageArea === localStorage && event.key === KEY && event.newValue) sync(event.newValue);
 });
 
 const prefersLight = new MediaQuery('(prefers-color-scheme: light)', false);
@@ -271,7 +394,10 @@ export const kindOf = (puzzle) => `${puzzle.family}:${puzzle.rules.map((r) => r.
 export const elapsed = (test) => Math.max(0, Math.round((test.finished - test.started) / 1000));
 
 export function finishTest() {
+  // Another tab may have answered or finished this test since this tab last heard from it, and the result is final.
+  untrack(sync);
   const test = store.test;
+  if (!isRunning(test)) return;
   test.finished = Math.min(Date.now(), test.deadline);
   const puzzles = puzzlesFor(test.seed);
   store.history = [
@@ -295,7 +421,8 @@ export function finishTest() {
 /** Whether a past test can be opened again: its answers were kept and the same generator still builds its puzzles. */
 export const canReview = (h) => Array.isArray(h.answers) && h.answers.length === TEST_LENGTH && h.generator === GENERATOR;
 
-export const pastTest = (date) => store.history.find((h) => String(h.date) === String(date)) ?? null;
+/** The past test a link names. Links made before results had keys carry only the date. */
+export const pastTest = (date, seed) => store.history.find((h) => String(h.date) === String(date) && (seed === undefined || h.seed === seed)) ?? null;
 
 /** A test left open past its deadline ends at the deadline. */
 export function expireTest() {

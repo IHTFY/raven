@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { GENERATOR, TEST_LENGTH } from '../src/lib/engine/generate.js';
+import { duration } from '../src/lib/format.js';
 
 let app;
 let svelte;
@@ -8,11 +9,13 @@ let state;
 const listeners = [];
 const aTest = () => ({ seed: 'abc', answers: Array(TEST_LENGTH).fill(null), times: Array(TEST_LENGTH).fill(0), current: 0, started: Date.now(), deadline: Date.now() + 60_000, finished: null });
 
+// Bound once: a test that opens the app twice would otherwise wrap its own spy.
+const add = window.addEventListener.bind(window);
+
 async function open(hash, saved) {
   vi.resetModules();
   location.hash = hash;
   localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history: [], log: [], ...saved }));
-  const add = window.addEventListener.bind(window);
   vi.spyOn(window, 'addEventListener').mockImplementation((type, listener, options) => {
     if (type === 'storage') listeners.push(listener);
     return add(type, listener, options);
@@ -130,4 +133,36 @@ it('keeps timing cleanup and queued advancement out of a replacement test with t
   svelte.flushSync();
   expect(state.store.test.current).toBe(0);
   expect(state.store.test.answers.every((answer) => answer === null)).toBe(true);
+});
+
+it('starts a new practice on the practice screen when another tab clears the session', async () => {
+  await open('#/practice', { practice: { seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: null } });
+  otherTabUpdates({ practice: null });
+  expect(state.store.practice).toMatchObject({ count: 0, done: 0 });
+  expect(state.store.practice.seed).not.toBe('def');
+  expect(document.querySelector('.score').getAttribute('aria-label')).toBe('0 right out of 0');
+  expect(JSON.parse(localStorage.getItem('raven')).practice.seed).toBe(state.store.practice.seed);
+});
+
+it('leaves the test screen for home when another tab clears the test', async () => {
+  await open('#/test/abc', { test: aTest() });
+  expect(document.querySelector('[aria-label="Option A"]')).not.toBe(null);
+  otherTabUpdates({ test: null });
+  expect(state.store.test).toBe(null);
+  expect(document.querySelector('[aria-label="Option A"]')).toBe(null);
+  expect(JSON.parse(localStorage.getItem('raven')).test).toBe(null);
+});
+
+it('opens each of two past tests that ended in the same millisecond', async () => {
+  const past = (seed, seconds) => ({ seed, score: 0, total: TEST_LENGTH, seconds, date: 10, answers: Array(TEST_LENGTH).fill(null), generator: GENERATOR });
+  const history = [past('one', 61), past('two', 125)];
+  for (const h of history) {
+    await open(`#/history/10/${h.seed}`, { history });
+    expect(document.querySelector('.score').textContent).toContain(duration(h.seconds));
+    svelte.unmount(app);
+    document.body.innerHTML = '';
+  }
+  // A link from before results had keys still opens a test with that date.
+  await open('#/history/10', { history });
+  expect(document.querySelector('.score').textContent).toContain(duration(61));
 });

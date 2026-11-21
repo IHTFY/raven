@@ -11,6 +11,8 @@
   import Toast from './Toast.svelte';
 
   startPractice();
+  // Another tab can clear the session while this screen is open; a new one starts here then.
+  $effect.pre(startPractice);
   const p = $derived(store.practice);
 
   const puzzle = $derived(practicePuzzle(p));
