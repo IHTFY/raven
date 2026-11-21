@@ -60,14 +60,22 @@
     }
   }
 
-  const move = (i) => (test.current = Math.max(0, Math.min(last, i)));
+  // The settle guard (below) covers only the tap that follows an automatic advance, so any move or opening the overview by hand ends it.
+  let settleUntil = 0;
+  const move = (i) => {
+    settleUntil = 0;
+    test.current = Math.max(0, Math.min(last, i));
+  };
+  const showOverview = () => {
+    settleUntil = 0;
+    overview = true;
+  };
 
   // After a pick, move on once the choice has had a moment to show,
   // unless you've already moved yourself. Past the deadline, the timer ends the test.
   // A puzzle reached this way ignores picks for a moment, so a double tap on the last one can't answer a puzzle that hasn't been seen.
   const SETTLE_MS = 400;
   let advance;
-  let settleUntil = 0;
   function choose(k) {
     if (performance.now() < settleUntil) return;
     if (!answerTest(k)) return;
@@ -96,10 +104,13 @@
   function keydown(e) {
     if (overview || e.metaKey || e.ctrlKey || e.altKey || pressesControl(e)) return;
     const k = optionForKey(e.key);
-    if (k >= 0) choose(k);
+    if (k >= 0) {
+      // A held key repeats; only the first press is an answer.
+      if (!e.repeat) choose(k);
+    }
     else if (e.key === 'ArrowLeft') move(test.current - 1);
     else if (e.key === 'ArrowRight') move(test.current + 1);
-    else if (e.key === 'Enter' && test.current === last) overview = true;
+    else if (e.key === 'Enter' && test.current === last) showOverview();
     else return;
     e.preventDefault();
   }
@@ -112,7 +123,7 @@
   <main>
     <header>
       <button class="icon-btn" onclick={() => go()} aria-label="Home (the timer keeps running)"><Icon name="home" /></button>
-      <button class="count btn tabular" onclick={() => (overview = true)} aria-label="All puzzles">
+      <button class="count btn tabular" onclick={showOverview} aria-label="All puzzles">
         <Icon name="grid" size={16} />
         {test.current + 1} / {puzzles.length}
       </button>
@@ -128,7 +139,7 @@
         <Icon name="back" /> Back
       </button>
       {#if test.current === last}
-        <button class="btn primary" onclick={() => (overview = true)}>Finish <Icon name="flag" /></button>
+        <button class="btn primary" onclick={showOverview}>Finish <Icon name="flag" /></button>
       {:else}
         <button class="btn" onclick={() => move(test.current + 1)} aria-label="Next puzzle">Next <Icon name="next" /></button>
       {/if}

@@ -134,3 +134,25 @@ it('lets a pick through at once after moving with Next, since that puzzle was ch
   expect(store.test.current).toBe(1);
   expect(store.test.answers[1]).toBe(1);
 });
+
+it('saves a corrected answer made with Back right after an automatic advance', async () => {
+  const store = await open();
+
+  document.querySelector('button[aria-label="Option A"]').click();
+  vi.advanceTimersByTime(280);
+  expect(store.test.current).toBe(1);
+
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+  document.querySelector('button[aria-label="Option C"]').click();
+
+  expect(store.test.current).toBe(0);
+  expect(store.test.answers[0]).toBe(2);
+});
+
+it('does not answer from a repeating key press', async () => {
+  const store = await open();
+
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', repeat: true }));
+
+  expect(store.test.answers[0]).toBe(null);
+});
