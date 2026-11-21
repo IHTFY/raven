@@ -27,10 +27,12 @@ function serviceWorker() {
         .map((file) => relative(outDir, file).split('\\').join('/'))
         .filter((file) => !SKIP.has(file) && !file.startsWith('.'))
         .sort();
-      const hash = createHash('sha256');
+      const template = readFileSync(new URL('./src/sw.js', import.meta.url), 'utf8');
+      // The worker's own code is part of the version, so a worker-only change still gets a new cache.
+      const hash = createHash('sha256').update(template);
       for (const file of files) hash.update(file).update(readFileSync(join(outDir, file)));
       const urls = ['/', ...files.filter((file) => file !== 'index.html').map((file) => `/${file}`)];
-      const source = readFileSync(new URL('./src/sw.js', import.meta.url), 'utf8')
+      const source = template
         .replace('__VERSION__', hash.digest('hex').slice(0, 12))
         .replace('__PRECACHE__', JSON.stringify(urls))
         .replace('__SHELL_HASH__', createHash('sha256').update(readFileSync(join(outDir, 'index.html'))).digest('hex'));
