@@ -51,7 +51,8 @@ const isTest = (t) =>
   (t.times === undefined || isTimes(t.times, TEST_LENGTH)) &&
   (t.finished === null || isDate(t.finished));
 
-// Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again.
+// Older saves have only the score; newer ones keep the answers and the generator that built the puzzles, so the test can be reviewed again,
+// and when the test started, which tells another tab still in that test that it is over.
 const isResult = (h) =>
   isSeed(h?.seed) &&
   Number.isInteger(h.total) &&
@@ -63,6 +64,7 @@ const isResult = (h) =>
   isDate(h.date) &&
   (h.answers === undefined || (Array.isArray(h.answers) && h.answers.length === h.total && h.answers.every(isChoice))) &&
   (h.generator === undefined || Number.isInteger(h.generator)) &&
+  (h.started === undefined || isDate(h.started)) &&
   (h.timedOut === undefined || typeof h.timedOut === 'boolean') &&
   (h.times === undefined || isTimes(h.times, h.total)) &&
   (h.kinds === undefined || isKinds(h.kinds, h.total)) &&
@@ -122,8 +124,8 @@ let baseRaw = null;
 let aside = null;
 /** The save in storage when a newer generator wrote it. This tab then only adds its results, practice answers and theme to it. */
 let newer = null;
-/** Records this tab has added to a newer generator's save, so each is added once even if that generator drops it. */
-const added = new Set();
+/** Records a newer generator's save has held, here or in storage. This tab adds only the ones it never has, so a record that generator drops stays dropped. */
+const known = new Set();
 
 const fromNewer = (saved) => Number.isInteger(saved?.generator) && saved.generator > GENERATOR;
 
@@ -169,20 +171,21 @@ const startedAfter = (a, b) => a.started > b.started || (a.started === b.started
 const pick = (mine, before, theirs) => (mine !== before ? mine : theirs);
 
 /**
- * One saved test from this tab's and storage's. `shown` is the test for this tab's screens, `stored` the one to save,
- * and `dropped` the key of a result this tab recorded for a test another tab had already finished.
+ * One saved test from this tab's and storage's, given the results storage holds. `shown` is the test for this tab's screens,
+ * `stored` the one to save, and `dropped` the key of a result this tab recorded for a test another tab had already finished.
  */
-function mergeTest(mine, theirs) {
+function mergeTest(mine, theirs, results) {
   const both = (test) => ({ shown: test, stored: test });
   if (sameAttempt(mine, theirs)) {
     // The first finish to reach storage stands: its result is already in the history.
     if (theirs.finished) return { ...both(theirs), dropped: mine.finished && mine.finished !== theirs.finished ? resultKey({ date: mine.finished, seed: mine.seed }) : null };
     if (mine.finished) return both(mine);
     // Both tabs are in the same running test: each question takes the answer changed since the last save, and time spent adds up.
+    // An answer is never taken back, so a blank in storage for a question answered here is a save that missed the answer.
     const before = sameAttempt(base.test, mine) ? base.test : theirs;
     return both({
       ...mine,
-      answers: mine.answers.map((answer, i) => pick(answer, before.answers[i], theirs.answers[i])),
+      answers: mine.answers.map((answer, i) => pick(answer, before.answers[i], theirs.answers[i]) ?? answer),
       times: mine.times.map((seconds, i) => (seconds === before.times[i] ? theirs.times[i] : Math.min(MAX_SECONDS, Math.max(0, Math.round((theirs.times[i] + seconds - before.times[i]) * 10) / 10)))),
       current: pick(mine.current, before.current, theirs.current),
     });
@@ -190,13 +193,15 @@ function mergeTest(mine, theirs) {
   // A test cleared in one tab is gone from both, unless a different one has been started since.
   if (!mine) return both(sameAttempt(base.test, theirs) && !aside ? null : theirs);
   if (!theirs) return both(sameAttempt(base.test, mine) ? null : mine);
-  // Two different tests. One this tab started since its last save replaces the one it knew storage held, whatever the clock says.
-  // Otherwise storage keeps the one started last, while a test running here plays on in this tab,
-  // and a finished one stays on screen until another tab starts a new test.
+  // Two different tests. One started since this tab's last save replaces the one storage held before, whatever the clock says,
+  // and of two started since, storage keeps the one started last.
   const mineNew = !sameAttempt(mine, base.test) && !sameAttempt(mine, aside);
   const theirsNew = !sameAttempt(theirs, base.test);
-  const stored = (mineNew && !theirsNew) || startedAfter(mine, theirs) ? mine : theirs;
-  return { shown: stored === mine || isRunning(mine) || !theirsNew ? mine : theirs, stored };
+  const stored = mineNew && (!theirsNew || startedAfter(mine, theirs)) ? mine : theirs;
+  // A test running here plays on in this tab unless another tab has finished it,
+  // and a finished one stays on screen until another tab starts a new test.
+  const stays = isRunning(mine) ? !results.some((h) => h.seed === mine.seed && h.started === mine.started) : !theirsNew;
+  return { shown: stored === mine || stays ? mine : theirs, stored };
 }
 
 /** One practice session from this tab's and storage's. */
@@ -229,11 +234,13 @@ function sync(heard) {
   // The lists stay as they are in the store: copying a long history on every answer would cost more than the save itself.
   const mine = { theme: store.theme, test: $state.snapshot(store.test), history: store.history, practice: $state.snapshot(store.practice), log: store.log };
   let raw = heard;
+  let canRead = true;
   try {
     raw = localStorage.getItem(KEY);
   } catch {
-    // Without knowing what storage holds, a save could erase it.
+    // Without knowing what storage holds, a save could erase it: the event's value is shown here and nothing is written.
     if (heard === undefined) return;
+    canRead = false;
   }
   // A save cleared since the event has nothing left to merge.
   if (heard !== undefined && !raw) return;
@@ -256,7 +263,7 @@ function sync(heard) {
     }
   }
 
-  const test = mergeTest(mine.test, theirs.test);
+  const test = mergeTest(mine.test, theirs.test, theirs.history);
   aside = test.shown === test.stored ? null : test.shown;
   // Storage's copy of a record wins a tie, so every tab ends up with the same one.
   const kept = test.dropped ? mine.history.filter((h) => resultKey(h) !== test.dropped) : mine.history;
@@ -277,8 +284,8 @@ function sync(heard) {
     // Only what this tab has that the newer save lacks goes in; its own test and practice stay as they are.
     const list = (records) => (Array.isArray(records) ? records : []);
     const lacking = (records, theirRecords, keyOf) => {
-      const there = new Set(theirRecords.map(keyOf));
-      return records.filter((x) => !there.has(keyOf(x)) && !added.has(keyOf(x)));
+      for (const x of theirRecords) known.add(keyOf(x));
+      return records.filter((x) => !known.has(keyOf(x)));
     };
     const results = lacking(history, list(newer.history).filter(isResult), resultKey);
     const attempts = lacking(shown.log, list(newer.log).filter(isAttempt), JSON.stringify);
@@ -288,7 +295,7 @@ function sync(heard) {
   } else written = JSON.stringify({ generator: GENERATOR, ...stored });
 
   let inStorage = raw;
-  if (written !== raw && canSave) {
+  if (written !== raw && canSave && canRead) {
     try {
       localStorage.setItem(KEY, written);
       inStorage = written;
@@ -298,7 +305,7 @@ function sync(heard) {
   }
   // After a failed write storage still holds what was read, and this tab's changes stay its own.
   if (inStorage === written) {
-    for (const key of adding) added.add(key);
+    for (const key of adding) known.add(key);
     if (newer && written !== raw) newer = JSON.parse(written);
     base = held(stored);
   } else base = held(theirs);
@@ -393,11 +400,14 @@ export const kindOf = (puzzle) => `${puzzle.family}:${puzzle.rules.map((r) => r.
 /** Seconds the test took: never below zero, even if the clock was set back during it. */
 export const elapsed = (test) => Math.max(0, Math.round((test.finished - test.started) / 1000));
 
+/** End the running test and record its result. Returns whether that test is finished now: another tab may have cleared or replaced it. */
 export function finishTest() {
+  const mine = store.test && { seed: store.test.seed, started: store.test.started };
   // Another tab may have answered or finished this test since this tab last heard from it, and the result is final.
   untrack(sync);
   const test = store.test;
-  if (!isRunning(test)) return;
+  if (!sameAttempt(test, mine)) return false;
+  if (test.finished) return true;
   test.finished = Math.min(Date.now(), test.deadline);
   const puzzles = puzzlesFor(test.seed);
   store.history = [
@@ -407,6 +417,7 @@ export function finishTest() {
       total: test.answers.length,
       seconds: elapsed(test),
       date: test.finished,
+      started: test.started,
       answers: [...test.answers],
       generator: GENERATOR,
       timedOut: test.finished >= test.deadline,
@@ -416,6 +427,7 @@ export function finishTest() {
     },
     ...store.history,
   ].slice(0, HISTORY_LENGTH);
+  return true;
 }
 
 /** Whether a past test can be opened again: its answers were kept and the same generator still builds its puzzles. */

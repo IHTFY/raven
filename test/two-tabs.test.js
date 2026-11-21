@@ -110,7 +110,10 @@ describe('two tabs', () => {
     expect(store.history.map((h) => h.date)).toEqual([10]);
     store.theme = 'dark';
     flushSync();
-    expect(saved().test.seed).toBe('mine');
+    // The test the other tab started is the saved one now; this tab's plays on without replacing it.
+    expect(store.test.seed).toBe('mine');
+    expect(saved().test.seed).toBe('theirs');
+    expect(saved().theme).toBe('dark');
     expect(saved().history.map((h) => h.date)).toEqual([10]);
   });
 
@@ -591,5 +594,87 @@ describe('a save merges with what storage holds', () => {
     tab.flushSync();
     expect(JSON.parse(real.getItem('raven')).test.answers[0]).toBe(2);
   });
-});
 
+  it('brings back an answer that a save from another tab missed', async () => {
+    localStorage.setItem('raven', whole({ test: aTest() }));
+    const tab = await openTab();
+    tab.answerTest(2);
+    tab.flushSync();
+    // The other tab read storage just before that save and wrote just after it, with its own answer to the next question.
+    localStorage.setItem('raven', whole({ test: aTest({ answers: answers(null, 4) }) }));
+    tab.hear();
+    expect(tab.store.test.answers.slice(0, 2)).toEqual([2, 4]);
+    expect(saved().test.answers.slice(0, 2)).toEqual([2, 4]);
+  });
+
+  it('keeps a test another tab started after the clock was set back, while the older one plays on here', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const a = await openTab();
+    const b = await openTab();
+    a.startTest('first');
+    a.flushSync();
+    b.hear();
+    vi.setSystemTime(Date.now() - 3_600_000);
+    a.startTest('second');
+    a.flushSync();
+    b.hear();
+    expect(saved().test.seed).toBe('second');
+    b.answerTest(1);
+    b.flushSync();
+    expect(b.store.test.seed).toBe('first');
+    expect(saved().test.seed).toBe('second');
+  });
+
+  it('leaves a test another tab finished and replaced, instead of finishing it again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const a = await openTab();
+    const b = await openTab();
+    a.startTest('first');
+    a.flushSync();
+    b.hear();
+    expect(b.store.test.seed).toBe('first');
+    vi.setSystemTime(Date.now() + 1000);
+    a.finishTest();
+    a.flushSync();
+    vi.setSystemTime(Date.now() + 1000);
+    a.startTest('second');
+    a.flushSync();
+    // This tab has heard of neither when its player ends the first test.
+    expect(b.finishTest()).toBe(false);
+    b.flushSync();
+    expect(b.store.test.seed).toBe('second');
+    expect(saved().test).toMatchObject({ seed: 'second', finished: null });
+    expect(saved().history.map((h) => h.seed)).toEqual(['first']);
+  });
+
+  it('writes nothing after an event when storage cannot be read', async () => {
+    localStorage.setItem('raven', whole({ test: aTest() }));
+    const tab = await openTab();
+    const earlier = localStorage.getItem('raven');
+    // Another tab has answered since the save this event is for.
+    const latest = whole({ test: aTest({ answers: answers(3) }) });
+    localStorage.setItem('raven', latest);
+    const real = localStorage;
+    vi.stubGlobal('localStorage', {
+      getItem() {
+        throw new DOMException('denied', 'SecurityError');
+      },
+      setItem: (key, value) => real.setItem(key, value),
+    });
+    tab.store.theme = 'dark';
+    tab.hear(earlier);
+    expect(real.getItem('raven')).toBe(latest);
+  });
+
+  it('does not put back a result or answer that a newer generator dropped', async () => {
+    const ahead = { generator: GENERATOR + 1, theme: null, test: null, history: [aResult(10), aResult(9)], practice: null, log: [anAttempt(2), anAttempt(1)] };
+    localStorage.setItem('raven', JSON.stringify(ahead));
+    const old = await openTab();
+    localStorage.setItem('raven', JSON.stringify({ ...ahead, history: [aResult(10)], log: [anAttempt(2)] }));
+    old.hear();
+    old.store.history = [aResult(11), ...old.store.history];
+    old.flushSync();
+    expect(saved().history.map((h) => h.date)).toEqual([11, 10]);
+    expect(saved().log.map((a) => a.date)).toEqual([2]);
+  });
+});

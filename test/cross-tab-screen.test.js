@@ -153,6 +153,20 @@ it('leaves the test screen for home when another tab clears the test', async () 
   expect(JSON.parse(localStorage.getItem('raven')).test).toBe(null);
 });
 
+it('goes home without a result when Finish is tapped on a test another tab has cleared', async () => {
+  await open('#/test/abc', { test: aTest() });
+  // The other tab's save has not been heard of yet.
+  localStorage.setItem('raven', JSON.stringify({ ...JSON.parse(localStorage.getItem('raven')), test: null }));
+  document.querySelector('[aria-label="All puzzles"]').click();
+  svelte.flushSync();
+  [...document.querySelectorAll('button')].find((button) => button.textContent.trim() === 'Finish anyway').click();
+  svelte.flushSync();
+  expect(state.store.test).toBe(null);
+  expect(state.store.history).toEqual([]);
+  expect(location.hash).toBe('#/');
+  expect(document.querySelector('[aria-label="Option A"]')).toBe(null);
+});
+
 it('opens each of two past tests that ended in the same millisecond', async () => {
   const past = (seed, seconds) => ({ seed, score: 0, total: TEST_LENGTH, seconds, date: 10, answers: Array(TEST_LENGTH).fill(null), generator: GENERATOR });
   const history = [past('one', 61), past('two', 125)];
