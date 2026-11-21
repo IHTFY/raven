@@ -21,6 +21,10 @@
 
   let why = $state(false);
   let toast = $state(null);
+  // Another tab can move the session on or replace it, and the explanation is only for an answered puzzle.
+  $effect.pre(() => {
+    if (!revealed) why = false;
+  });
 
   // Time to answer, for the statistics.
   let shownAt = performance.now();

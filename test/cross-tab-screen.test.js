@@ -144,6 +144,17 @@ it('starts a new practice on the practice screen when another tab clears the ses
   expect(JSON.parse(localStorage.getItem('raven')).practice.seed).toBe(state.store.practice.seed);
 });
 
+it('closes the explanation when another tab clears the practice it explains', async () => {
+  await open('#/practice', { practice: { seed: 'def', count: 0, target: 1, right: 0, done: 1, choice: 0, group: null } });
+  const button = (text) => [...document.querySelectorAll('button')].find((b) => b.textContent.trim() === text);
+  button('Why?').click();
+  svelte.flushSync();
+  expect(button('Next puzzle')).toBeDefined();
+  otherTabUpdates({ practice: null });
+  expect(state.store.practice.done).toBe(0);
+  expect(button('Next puzzle')).toBeUndefined();
+});
+
 it('leaves the test screen for home when another tab clears the test', async () => {
   await open('#/test/abc', { test: aTest() });
   expect(document.querySelector('[aria-label="Option A"]')).not.toBe(null);
