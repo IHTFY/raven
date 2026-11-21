@@ -21,9 +21,93 @@
       if (theme !== 'light' && theme !== 'dark') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = theme;
     </script>
+    <style>
+      /* Installed-app launch: the first paint copies Chrome's launch screen (manifest background,
+         maskable icon at 128px, name near the bottom), then launchExit() animates out of it. */
+      #launch {
+        display: none;
+      }
+      .launching #launch {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: grid;
+        place-items: center;
+        background: #252a3a;
+      }
+      #launch-icon {
+        position: relative;
+        width: 128px;
+        height: 128px;
+      }
+      /* One layer per piece of the icon's puzzle, so each can fly to its own cell. */
+      #launch-icon svg {
+        position: absolute;
+        inset: 0;
+        overflow: visible;
+      }
+      #launch-name {
+        position: absolute;
+        inset: auto 0 56px;
+        font: 24px/1 Roboto, system-ui, sans-serif;
+        text-align: center;
+        color: rgb(255 255 255 / 0.87);
+      }
+    </style>
+    <script>
+      // Plays once per fresh launch of the installed app: never in a browser tab, on reload, or on return.
+      (() => {
+        const root = document.documentElement;
+        try {
+          const nav = performance.getEntriesByType('navigation')[0];
+          const app = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
+          if (!app || nav?.type !== 'navigate' || sessionStorage.getItem('launched')) return;
+          sessionStorage.setItem('launched', '1');
+        } catch {
+          return;
+        }
+        root.classList.add('launching');
+        const end = () => {
+          clearTimeout(fallback);
+          root.classList.remove('launching');
+          document.getElementById('launch')?.remove();
+        };
+        // The game never stays hidden behind the copy if it fails to call launchExit.
+        const fallback = setTimeout(end, 4000);
+        // play(overlay) starts the game's exit and returns its Web Animations.
+        window.launchExit = (play) => {
+          clearTimeout(fallback);
+          const overlay = document.getElementById('launch');
+          // Too late: the fallback already removed the copy.
+          if (!overlay) return;
+          let animations = [];
+          if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            try {
+              animations = play(overlay);
+            } catch {
+              animations = [];
+            }
+          }
+          if (!animations.length) {
+            animations = [overlay.animate({ opacity: [1, 0] }, { duration: 200, easing: 'ease-out', fill: 'forwards' })];
+          }
+          overlay.addEventListener('pointerdown', () => animations.forEach((a) => a.finish()), { once: true });
+          Promise.all(animations.map((a) => a.finished)).then(end, end);
+        };
+      })();
+    </script>
   </head>
 
   <body>
+    <div id="launch" aria-hidden="true">
+      <div id="launch-icon">
+        <svg viewBox="0 0 512 512"><g transform="matrix(0.8 0 0 0.8 51.2 51.2)"><circle cx="160" cy="160" r="66" fill="#e8ebf4" /></g></svg>
+        <svg viewBox="0 0 512 512"><g transform="matrix(0.8 0 0 0.8 51.2 51.2)"><path d="M352 99L418 213H286Z" fill="#8890a8" stroke="#8890a8" stroke-width="12" stroke-linejoin="round" /></g></svg>
+        <svg viewBox="0 0 512 512"><g transform="matrix(0.8 0 0 0.8 51.2 51.2)"><path d="M160 291L226 405H94Z" fill="#8890a8" stroke="#8890a8" stroke-width="12" stroke-linejoin="round" /></g></svg>
+        <svg viewBox="0 0 512 512"><g transform="matrix(0.8 0 0 0.8 51.2 51.2)"><path d="M312 330C312 288 392 288 392 336C392 366 352 366 352 394" fill="none" stroke="#8aa8ff" stroke-width="30" stroke-linecap="round" /><circle cx="352" cy="432" r="18" fill="#8aa8ff" /></g></svg>
+      </div>
+      <span id="launch-name">Raven</span>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
