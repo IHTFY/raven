@@ -8,6 +8,9 @@ const CACHE = `${PREFIX}${VERSION}`;
 
 async function install() {
   try {
+    // Recreate the cache so creation order matches install order, even when a rollback reinstalls
+    // a version whose cache was kept as the previous one.
+    await caches.delete(CACHE);
     const cache = await caches.open(CACHE);
     // Fetch past the HTTP cache so a new version never precaches stale files.
     await cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })));
