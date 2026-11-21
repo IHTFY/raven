@@ -7,18 +7,20 @@ const PREFIX = 'raven-';
 const CACHE = `${PREFIX}${VERSION}`;
 
 async function install() {
-  const cache = await caches.open(CACHE);
-  // Fetch past the HTTP cache so a new version never precaches stale files.
-  await cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })));
-  // A page from another deploy would point at bundles this cache doesn't hold. Failing the install
-  // keeps the previous worker and its cache; the browser tries again on a later visit.
-  const shell = await (await cache.match('/')).arrayBuffer();
-  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', shell))]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-  if (hash !== SHELL_HASH) {
-    await caches.delete(CACHE);
-    throw new Error('Cached page is from another deploy');
+  try {
+    const cache = await caches.open(CACHE);
+    // Fetch past the HTTP cache so a new version never precaches stale files.
+    await cache.addAll(PRECACHE.map((url) => new Request(url, { cache: 'reload' })));
+    // A page from another deploy would point at bundles this cache doesn't hold.
+    const shell = await (await cache.match('/')).arrayBuffer();
+    const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', shell))]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    if (hash !== SHELL_HASH) throw new Error('Cached page is from another deploy');
+  } catch (error) {
+    // A failed install keeps the previous worker and its cache; the browser tries again on a later visit.
+    await caches.delete(CACHE).catch(() => {});
+    throw error;
   }
   await self.skipWaiting();
 }
@@ -27,18 +29,22 @@ self.addEventListener('install', (event) => event.waitUntil(install()));
 
 // The previous version's cache stays until the next deploy: a tab that loaded the previous page just
 // before this worker took over still asks for that page's bundles, which the deploy removed from the site.
-// caches.keys() lists caches in the order they were created.
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => {
-        const older = keys.filter((key) => key.startsWith(PREFIX) && key !== CACHE);
-        return Promise.all(older.slice(0, -1).map((key) => caches.delete(key)));
-      })
-      .then(() => self.clients.claim()),
-  );
-});
+// caches.keys() lists caches in the order they were created; only a cache holding a page counts as a
+// finished version (an install cut off before its cleanup can leave an empty one).
+async function activate() {
+  const older = (await caches.keys()).filter((key) => key.startsWith(PREFIX) && key !== CACHE);
+  let previous;
+  for (const key of [...older].reverse()) {
+    if (await (await caches.open(key)).match('/')) {
+      previous = key;
+      break;
+    }
+  }
+  await Promise.all(older.filter((key) => key !== previous).map((key) => caches.delete(key)));
+  await self.clients.claim();
+}
+
+self.addEventListener('activate', (event) => event.waitUntil(activate()));
 
 // A cache that can't be opened or read (storage blocked or full) counts as a miss. Pages and other
 // unhashed files come from this version's cache only; hashed bundles may come from the previous one.
