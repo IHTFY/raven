@@ -55,13 +55,14 @@
       }
     </style>
     <script>
-      // Plays once per fresh launch of the installed app: never in a browser tab, on reload, or on return.
+      // Plays once per fresh launch of the installed app at its start page (Home, under the copy): never in a
+      // browser tab, on reload, on return, or for a link that opens the app on a puzzle.
       (() => {
         const root = document.documentElement;
         try {
           const nav = performance.getEntriesByType('navigation')[0];
           const app = matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches;
-          if (!app || nav?.type !== 'navigate' || sessionStorage.getItem('launched')) return;
+          if (!app || location.hash || nav?.type !== 'navigate' || sessionStorage.getItem('launched')) return;
           sessionStorage.setItem('launched', '1');
         } catch {
           return;
