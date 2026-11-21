@@ -79,10 +79,11 @@
   $effect(() => () => clearTimeout(advance));
 
   function finish() {
+    const { seed } = test;
     spendTime(test.current, seconds());
     shownAt = performance.now();
-    finishTest();
-    go(`test/${test.seed}`);
+    // Another tab may have cleared or replaced this test, and then there are no results to show.
+    go(finishTest() ? `test/${seed}` : '');
   }
 
   function keydown(e) {

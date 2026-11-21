@@ -86,10 +86,11 @@ describe('saves', () => {
     expect(store.log).toEqual([anAttempt({ date: 2 }), anAttempt({ date: 1 })]);
   });
 
-  it('keeps the first of two results with the same date, since screens find a past test by its date', async () => {
-    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history: [aResult({ seed: 'xyz' }), aResult({ seed: 'abc' })] }));
+  it('keeps the first of two results with the same date and seed, since screens find a past test by both', async () => {
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, history: [aResult({ seed: 'xyz' }), aResult({ seed: 'xyz', score: 0 }), aResult({ seed: 'abc' })] }));
     const { store } = await loadState();
-    expect(store.history).toEqual([aResult({ seed: 'xyz' })]);
+    // Two tests can end in the same millisecond in two tabs; their seeds tell them apart.
+    expect(store.history).toEqual([aResult({ seed: 'xyz' }), aResult({ seed: 'abc' })]);
   });
 
   it('drops a saved test whose deadline is before its start', async () => {

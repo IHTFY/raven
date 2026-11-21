@@ -1,7 +1,7 @@
 <script>
   import { go } from '../router.svelte.js';
   import { duration, shortDate } from '../format.js';
-  import { canReview, store } from '../state.svelte.js';
+  import { canReview, resultKey, store } from '../state.svelte.js';
   import { benchmarkOf } from '../benchmarks.js';
   import Icon from './Icon.svelte';
 
@@ -17,10 +17,10 @@
 
   {#if store.history.length}
     <ol>
-      {#each store.history as h, i (h.date)}
+      {#each store.history as h, i (resultKey(h))}
         {@const open = canReview(h)}
         <li style:--i={i}>
-          <button class="row" disabled={!open} onclick={() => go(`history/${h.date}`)} aria-label="Test from {shortDate(h.date)}: {h.score} out of {h.total}{open ? '' : ', score only'}">
+          <button class="row" disabled={!open} onclick={() => go(`history/${resultKey(h)}`)} aria-label="Test from {shortDate(h.date)}: {h.score} out of {h.total}{open ? '' : ', score only'}">
             <span class="score tabular"><b>{h.score}</b><span class="muted">/{h.total}</span></span>
             <span class="bar sunk"><span style:width="{(100 * h.score) / h.total}%"></span></span>
             <span class="meta muted tabular">{#if h.generator != null && benchmarkOf(h.seed, h.generator)}<b class="tag">{benchmarkOf(h.seed, h.generator).name}</b> · {/if}{duration(h.seconds)} · {shortDate(h.date)}</span>

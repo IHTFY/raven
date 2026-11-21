@@ -11,6 +11,8 @@
   import Toast from './Toast.svelte';
 
   startPractice();
+  // Another tab can clear the session while this screen is open; a new one starts here then.
+  $effect.pre(startPractice);
   const p = $derived(store.practice);
 
   const puzzle = $derived(practicePuzzle(p));
@@ -19,6 +21,10 @@
 
   let why = $state(false);
   let toast = $state(null);
+  // Another tab can move the session on or replace it, and the explanation is only for an answered puzzle.
+  $effect.pre(() => {
+    if (!revealed) why = false;
+  });
 
   // Time to answer, for the statistics.
   let shownAt = performance.now();
