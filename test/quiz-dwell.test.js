@@ -105,3 +105,32 @@ it('does not count the time of a quiz that opened and closed in a background tab
 
   expect(store.test.times[0]).toBe(0);
 });
+
+it('ignores a pick on a puzzle that has just appeared after an answer, by tap or key', async () => {
+  const store = await open();
+  const tapA = () => document.querySelector('button[aria-label="Option A"]').click();
+
+  tapA();
+  vi.advanceTimersByTime(280);
+  expect(store.test.current).toBe(1);
+
+  // A second tap of a double tap lands on the new puzzle before it can have been seen.
+  tapA();
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+  expect(store.test.answers[1]).toBe(null);
+
+  // A deliberate pick once the puzzle has settled still counts.
+  vi.advanceTimersByTime(400);
+  tapA();
+  expect(store.test.answers[1]).toBe(0);
+});
+
+it('lets a pick through at once after moving with Next, since that puzzle was chosen by the player', async () => {
+  const store = await open();
+
+  document.querySelector('button[aria-label="Next puzzle"]').click();
+  document.querySelector('button[aria-label="Option B"]').click();
+
+  expect(store.test.current).toBe(1);
+  expect(store.test.answers[1]).toBe(1);
+});

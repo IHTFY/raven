@@ -64,8 +64,12 @@
 
   // After a pick, move on once the choice has had a moment to show,
   // unless you've already moved yourself. Past the deadline, the timer ends the test.
+  // A puzzle reached this way ignores picks for a moment, so a double tap on the last one can't answer a puzzle that hasn't been seen.
+  const SETTLE_MS = 400;
   let advance;
+  let settleUntil = 0;
   function choose(k) {
+    if (performance.now() < settleUntil) return;
     if (!answerTest(k)) return;
     const session = test;
     const at = test.current;
@@ -73,7 +77,10 @@
     advance = setTimeout(() => {
       if (test.seed !== session.seed || test.started !== session.started || test.current !== at) return;
       if (at === last) overview = true;
-      else move(at + 1);
+      else {
+        move(at + 1);
+        settleUntil = performance.now() + SETTLE_MS;
+      }
     }, 280);
   }
   $effect(() => () => clearTimeout(advance));
