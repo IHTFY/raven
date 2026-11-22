@@ -50,7 +50,8 @@ it('skips to the end on a tap', () => {
 });
 
 const tap = (target, init = {}) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, isPrimary: true, button: 0, pointerType: 'touch', ...init }));
-const click = (target) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+// detail counts the presses that made the click: 1 for a tap, 0 for Enter or Space on a focused button.
+const click = (target, detail = 1) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }));
 
 // A control under the copy, the way Home's buttons sit under it.
 function control() {
@@ -99,6 +100,18 @@ it('drops the guard a second after the skip', async () => {
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('lets a click made with the keyboard through while the guard waits for the tap\'s click', async () => {
+  const { button, pressed } = control();
+  tap(document.getElementById('launch'));
+  settle();
+  await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
+  click(button, 0);
+  expect(pressed).toHaveBeenCalledTimes(1);
+  // The tap's own click still goes nowhere.
+  click(button);
+  expect(pressed).toHaveBeenCalledTimes(1);
 });
 
 it('skips on a key and keeps it from the page', () => {

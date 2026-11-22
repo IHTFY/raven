@@ -110,11 +110,17 @@
               eat(event);
               // A touch's click comes after the copy has gone, aimed at whatever is under the finger, so the
               // guard outlives the launch. A drag or a mouse press that loses its click leaves no click to eat:
-              // the next press, a cancel, or a second drops the guard so it can't take a real click later.
+              // the next press, a cancel, or a second drops the guard so it can't take a real click later. A click
+              // made with the keyboard (detail 0) never came from the press, so it goes through.
               if (event.type === 'pointerdown' && event.isPrimary && event.button === 0) {
                 const guard = new AbortController();
                 const drop = () => guard.abort();
-                addEventListener('click', eat, { capture: true, once: true, signal: guard.signal });
+                const eatPress = (click) => {
+                  if (!click.detail) return;
+                  eat(click);
+                  drop();
+                };
+                addEventListener('click', eatPress, { capture: true, signal: guard.signal });
                 addEventListener('pointercancel', drop, { capture: true, signal: guard.signal });
                 addEventListener('pointerdown', drop, { capture: true, signal: guard.signal });
                 setTimeout(drop, 1000);
