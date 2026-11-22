@@ -75,7 +75,12 @@
           const app = document.getElementById('app');
           if (app) app.inert = false;
         };
-        const skip = () => animations.forEach((a) => a.finish());
+        // A tap before the exit starts is remembered, and the exit then skips straight to its end.
+        let skipped = false;
+        const skip = () => {
+          skipped = true;
+          animations.forEach((a) => a.finish());
+        };
         const eat = (event) => {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -134,6 +139,7 @@
             if (!animations.length) {
               animations = [overlay.animate({ opacity: [1, 0] }, { duration: 200, easing: 'ease-out', fill: 'forwards' })];
             }
+            if (skipped) skip();
             // A tap skips to the end, and so does a rotation, which moves what the pieces fly to. The installed
             // app gets a resize event as it starts with the size unchanged; that one must not cut the motion.
             addEventListener(

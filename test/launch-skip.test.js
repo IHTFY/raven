@@ -167,7 +167,7 @@ it('eats the click from the press in a browser whose clicks carry no pointer id'
   expect(pressed).toHaveBeenCalledTimes(1);
 });
 
-it('keeps the click of a finger that lands before the exit and lifts after it', async () => {
+it('skips the exit for a finger that lands before it, and keeps its click when it lifts after', async () => {
   // Start over with a launch whose exit hasn't begun, as while the app loads under the copy.
   settle();
   await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
@@ -178,6 +178,8 @@ it('keeps the click of a finger that lands before the exit and lifts after it', 
   tap(document.getElementById('launch'));
   animation = { finish: vi.fn(), finished: new Promise((resolve) => (settle = resolve)) };
   window.launchExit(() => [animation]);
+  // The early tap asked for a skip, so the exit goes straight to its end.
+  expect(animation.finish).toHaveBeenCalled();
   settle();
   await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
   release(button);
