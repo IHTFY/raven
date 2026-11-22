@@ -62,8 +62,10 @@
           return;
         }
         root.classList.add('launching');
-        // Drops the listeners the exit adds.
+        // Drops the listeners the launch adds.
         const exit = new AbortController();
+        // The exit's Web Animations, once launchExit has started them.
+        let animations = [];
         const end = () => {
           clearTimeout(fallback);
           exit.abort();
@@ -73,6 +75,41 @@
           const app = document.getElementById('app');
           if (app) app.inert = false;
         };
+        const skip = () => animations.forEach((a) => a.finish());
+        const eat = (event) => {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        };
+        // While the copy shows, a tap or key only skips it: nothing behind it reacts. This holds from the start, so a
+        // finger that lands before the exit and lifts after it still loses its click.
+        const swallow = (event) => {
+          eat(event);
+          // A touch's click comes after the copy has gone, aimed at whatever is under the finger, so the
+          // guard outlives the launch. It takes only that pointer's click: a keyboard click (pointerId -1) and
+          // other fingers go through. A drag or a mouse press that loses its click leaves no click to eat, so
+          // a new gesture (the next primary press of its kind), a cancel, or a second after release drops the guard.
+          if (event.type === 'pointerdown' && event.isPrimary && event.button === 0) {
+            const guard = new AbortController();
+            const drop = () => guard.abort();
+            const pointer = event.pointerId;
+            const type = event.pointerType;
+            const mine = (other) => other.pointerId === pointer;
+            const eatPress = (click) => {
+              // Browsers whose clicks carry no pointer id: a click from a press counts it in detail.
+              if (click.pointerId === undefined ? !click.detail : !mine(click)) return;
+              eat(click);
+              drop();
+            };
+            const options = { capture: true, signal: guard.signal };
+            addEventListener('click', eatPress, options);
+            addEventListener('pointerdown', (other) => other.isPrimary && other.pointerType === type && drop(), options);
+            addEventListener('pointercancel', (other) => mine(other) && drop(), options);
+            addEventListener('pointerup', (other) => mine(other) && setTimeout(drop, 1000), options);
+          }
+          skip();
+        };
+        addEventListener('pointerdown', swallow, { capture: true, signal: exit.signal });
+        addEventListener('keydown', swallow, { capture: true, signal: exit.signal });
         // The game never stays hidden behind the copy if it fails to call launchExit.
         const fallback = setTimeout(end, 4000);
         // play(overlay) starts the game's exit and returns its Web Animations.
@@ -87,7 +124,6 @@
             document.getElementById('app').inert = true;
             const width = innerWidth;
             const height = innerHeight;
-            let animations = [];
             if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
               try {
                 animations = play(overlay);
@@ -100,39 +136,6 @@
             }
             // A tap skips to the end, and so does a rotation, which moves what the pieces fly to. The installed
             // app gets a resize event as it starts with the size unchanged; that one must not cut the motion.
-            const skip = () => animations.forEach((a) => a.finish());
-            const eat = (event) => {
-              event.preventDefault();
-              event.stopImmediatePropagation();
-            };
-            // While the copy shows, a tap or key only skips it: nothing behind it reacts.
-            const swallow = (event) => {
-              eat(event);
-              // A touch's click comes after the copy has gone, aimed at whatever is under the finger, so the
-              // guard outlives the launch. It takes only that pointer's click: a keyboard click (pointerId -1) and
-              // other fingers go through. A drag or a mouse press that loses its click leaves no click to eat, so
-              // a new gesture (the next primary press), a cancel, or a second after release drops the guard.
-              if (event.type === 'pointerdown' && event.isPrimary && event.button === 0) {
-                const guard = new AbortController();
-                const drop = () => guard.abort();
-                const pointer = event.pointerId;
-                const mine = (other) => other.pointerId === pointer;
-                const eatPress = (click) => {
-                  // Browsers whose clicks carry no pointer id: a click from a press counts it in detail.
-                  if (click.pointerId === undefined ? !click.detail : !mine(click)) return;
-                  eat(click);
-                  drop();
-                };
-                const options = { capture: true, signal: guard.signal };
-                addEventListener('click', eatPress, options);
-                addEventListener('pointerdown', (other) => other.isPrimary && drop(), options);
-                addEventListener('pointercancel', (other) => mine(other) && drop(), options);
-                addEventListener('pointerup', (other) => mine(other) && setTimeout(drop, 1000), options);
-              }
-              skip();
-            };
-            addEventListener('pointerdown', swallow, { capture: true, signal: exit.signal });
-            addEventListener('keydown', swallow, { capture: true, signal: exit.signal });
             addEventListener(
               'resize',
               () => {
