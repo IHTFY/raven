@@ -5,7 +5,10 @@
  * pop in. index.html holds the copy of the launch screen; main.js hands this to its launchExit.
  */
 
-const FLY = 760;
+// Chrome fades its own launch screen out over about 300 ms after the first paint; the pieces
+// hold still under it, so its icon never shows beside them.
+const WAIT = 300;
+const FLY = 700;
 const STAGGER = 40;
 // The pieces move on this curve; their fades run on the clock, so a piece fades only once it is nearly in place.
 const EASE = 'cubic-bezier(0.5, 0, 0.2, 1)';
@@ -39,31 +42,15 @@ export function playLaunch(overlay) {
   const targets = [drawn(cells[0]), drawn(cells[2]), drawn(cells[6]), { x: r.left + r.width / 2, y: r.top + r.height / 2, h: size * 0.72 }];
 
   const animations = [
-    overlay.animate({ backgroundColor: ['#252a3a', 'rgb(37 42 58 / 0)'] }, { duration: 600, delay: 100, easing: 'ease-in', fill: 'forwards' }),
+    overlay.animate({ backgroundColor: ['#252a3a', 'rgb(37 42 58 / 0)'] }, { duration: 560, delay: WAIT + 60, easing: 'ease-in', fill: 'forwards' }),
+    // Chrome's name fades out with its launch screen; the title fades in as the pieces land.
+    document.querySelector('h1').animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], { duration: FLY, delay: WAIT, fill: 'backwards' }),
   ];
-
-  // The name rises into Home's title as the pieces fly.
-  const name = document.getElementById('launch-name');
-  const title = document.querySelector('h1');
-  const from = name.getBoundingClientRect();
-  const to = title.getBoundingClientRect();
-  const grow = parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(name).fontSize);
-  animations.push(
-    name.animate(
-      [
-        { transform: 'none', opacity: 1, easing: EASE },
-        { opacity: 1, offset: 0.6 },
-        { transform: `translate(${to.left + to.width / 2 - (from.left + from.width / 2)}px, ${to.top + to.height / 2 - (from.top + from.height / 2)}px) scale(${grow})`, opacity: 0 },
-      ],
-      { duration: FLY, fill: 'forwards' },
-    ),
-    title.animate([{ opacity: 0 }, { opacity: 0, offset: 0.6 }, { opacity: 1 }], { duration: FLY }),
-  );
 
   [...overlay.querySelectorAll('#launch-icon g')].forEach((piece, i) => {
     const from = box(piece.getBoundingClientRect(), piece.firstElementChild);
     const to = targets[i];
-    const delay = i * STAGGER;
+    const delay = WAIT + i * STAGGER;
     const svg = piece.ownerSVGElement;
     const origin = svg.getBoundingClientRect();
     svg.style.transformOrigin = `${from.x - origin.left}px ${from.y - origin.top}px`;
@@ -86,7 +73,7 @@ export function playLaunch(overlay) {
     animations.push(
       cells[n].animate([{ opacity: 0, transform: 'scale(0.6)' }, { opacity: 1, transform: 'none' }], {
         duration: 240,
-        delay: 420 + k * 40,
+        delay: WAIT + 380 + k * 40,
         easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)',
         fill: 'backwards',
       }),
