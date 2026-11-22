@@ -1,4 +1,5 @@
 <script>
+  import { GENERATOR } from '../engine/generate.js';
   import { isSeed } from '../engine/rng.js';
   import { rise } from '../motion.js';
   import { route } from '../router.svelte.js';
@@ -25,8 +26,8 @@
     if (page === 'test') {
       const test = store.test;
       if (test && (!seed || seed === test.seed)) return { screen: test.finished ? 'results' : 'quiz', key: test.seed };
-      // A seed the player has already taken isn't a shared test: an older entry in the tab's history (Back, or a saved link) opens its result.
-      const taken = isSeed(seed) ? store.history.filter((h) => h.seed === seed) : [];
+      // A seed already taken isn't a shared test, so an older entry (Back, a saved link) opens its result. Another generator built a different test from that seed.
+      const taken = isSeed(seed) ? store.history.filter((h) => h.seed === seed && h.generator === GENERATOR) : [];
       const past = taken.find(canReview);
       if (past) return { screen: 'past', key: resultKey(past), past };
       if (taken.length) return { screen: 'home' };
