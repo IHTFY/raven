@@ -85,6 +85,8 @@
           try {
             // Nothing behind the copy takes keys until it has gone.
             document.getElementById('app').inert = true;
+            const width = innerWidth;
+            const height = innerHeight;
             let animations = [];
             if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
               try {
@@ -96,10 +98,17 @@
             if (!animations.length) {
               animations = [overlay.animate({ opacity: [1, 0] }, { duration: 200, easing: 'ease-out', fill: 'forwards' })];
             }
-            // A tap skips to the end, and so does a rotation, which moves what the pieces fly to.
+            // A tap skips to the end, and so does a rotation, which moves what the pieces fly to. The installed
+            // app gets a resize event as it starts with the size unchanged; that one must not cut the motion.
             const skip = () => animations.forEach((a) => a.finish());
             overlay.addEventListener('pointerdown', skip, { signal: exit.signal });
-            addEventListener('resize', skip, { signal: exit.signal });
+            addEventListener(
+              'resize',
+              () => {
+                if (innerWidth !== width || innerHeight !== height) skip();
+              },
+              { signal: exit.signal },
+            );
             Promise.all(animations.map((a) => a.finished)).then(end, end);
           } catch {
             end();
