@@ -198,7 +198,9 @@ it('moves from the results of a finished test to the test another tab starts, no
   const finished = { ...aTest(), started: 1000, finished: 5000 };
   await open('#/test/abc', { test: finished, history: [resultOf('abc', 1000, 5000)] });
   expect(document.body.textContent).toContain('Results');
+  const entries = history.length;
   otherTabUpdates({ test: { ...aTest(), seed: 'def', started: 9000 } });
+  expect(history.length).toBe(entries); // Back doesn't return to the old seed, which would read as shared
   expect(state.store.test.seed).toBe('def');
   expect(document.body.textContent).not.toContain('Someone shared test');
   expect(location.hash).toBe('#/test/def');

@@ -279,7 +279,7 @@ function sync(heard) {
   // A test this tab had on screen, replaced by another tab's new one, hands its route over: the old seed would read as a shared test.
   if (mine.test && shown.test && shown.test.seed !== mine.test.seed) {
     const [page, seed] = untrack(() => route.path);
-    if (page === 'test' && seed === mine.test.seed) go(`test/${shown.test.seed}`);
+    if (page === 'test' && seed === mine.test.seed) go(`test/${shown.test.seed}`, { replace: true });
   }
 
   let stored = { ...shown, test: test.stored };
