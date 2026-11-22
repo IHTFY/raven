@@ -49,9 +49,9 @@ it('skips to the end on a tap', () => {
   expect(animation.finish).toHaveBeenCalled();
 });
 
-const tap = (target, init = {}) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, isPrimary: true, button: 0, pointerType: 'touch', ...init }));
-// detail counts the presses that made the click: 1 for a tap, 0 for Enter or Space on a focused button.
-const click = (target, detail = 1) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }));
+const tap = (target, init = {}) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, isPrimary: true, button: 0, pointerId: 2, pointerType: 'touch', ...init }));
+// Chrome sends a click as a PointerEvent carrying the id of the pointer that made it, and -1 for a keyboard click.
+const click = (target, init = {}) => target.dispatchEvent(new PointerEvent('click', { bubbles: true, cancelable: true, pointerId: 2, detail: 1, ...init }));
 
 // A control under the copy, the way Home's buttons sit under it.
 function control() {
@@ -63,29 +63,48 @@ function control() {
   return { button, pressed };
 }
 
-it('keeps a tap that skips from pressing the control under it once the copy has gone', async () => {
-  const { button, pressed } = control();
-  tap(document.getElementById('launch'));
+async function skipAndEnd(init) {
+  tap(document.getElementById('launch'), init);
   expect(animation.finish).toHaveBeenCalled();
   settle();
   await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
+}
+
+it('keeps a tap that skips from pressing the control under it once the copy has gone', async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
   // The touch's click arrives after the launch ended, aimed at whatever is under the finger.
   click(button);
   expect(pressed).not.toHaveBeenCalled();
   // The next tap is the player's own.
-  tap(button);
-  click(button);
+  tap(button, { pointerId: 3 });
+  click(button, { pointerId: 3 });
   expect(pressed).toHaveBeenCalledTimes(2);
+});
+
+it("eats the tap's click even when it counts no presses", async () => {
+  // Older Chrome sends a click with detail 0 after its pointerdown was canceled.
+  const { button, pressed } = control();
+  await skipAndEnd();
+  click(button, { detail: 0 });
+  expect(pressed).not.toHaveBeenCalled();
+});
+
+it("keeps the guard through another finger's press", async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
+  tap(button, { pointerId: 3, isPrimary: false });
+  button.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true, pointerId: 3 }));
+  click(button);
+  expect(pressed).toHaveBeenCalledTimes(1);
 });
 
 it('lets the next press through when the skip ended without a click', async () => {
   const { button, pressed } = control();
-  tap(document.getElementById('launch'));
-  settle();
-  await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
   // A drag, or a mouse press that lost its click with the copy: the guard must not take the next click.
-  tap(button, { pointerType: 'mouse' });
-  click(button);
+  await skipAndEnd({ pointerId: 1, pointerType: 'mouse' });
+  tap(button, { pointerId: 1, pointerType: 'mouse' });
+  click(button, { pointerId: 1 });
   expect(pressed).toHaveBeenCalledTimes(2);
 });
 
@@ -102,15 +121,22 @@ it('drops the guard a second after the skip', async () => {
   }
 });
 
-it('lets a click made with the keyboard through while the guard waits for the tap\'s click', async () => {
+it('lets a click made with the keyboard through while the guard waits for the tap’s click', async () => {
   const { button, pressed } = control();
-  tap(document.getElementById('launch'));
-  settle();
-  await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
-  click(button, 0);
+  await skipAndEnd();
+  click(button, { pointerId: -1, detail: 0 });
   expect(pressed).toHaveBeenCalledTimes(1);
   // The tap's own click still goes nowhere.
   click(button);
+  expect(pressed).toHaveBeenCalledTimes(1);
+});
+
+it('eats the click from the press in a browser whose clicks carry no pointer id', async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
+  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+  expect(pressed).toHaveBeenCalledTimes(1);
+  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
   expect(pressed).toHaveBeenCalledTimes(1);
 });
 
