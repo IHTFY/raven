@@ -99,9 +99,11 @@
             const pointer = event.pointerId;
             const type = event.pointerType;
             const mine = (other) => other.pointerId === pointer;
+            let released = false;
             const eatPress = (click) => {
-              // Browsers whose clicks carry no pointer id: a click from a press counts it in detail.
-              if (click.pointerId === undefined ? !click.detail : !mine(click)) return;
+              // Browsers whose clicks carry no pointer id: a click from a press counts it in detail, and the
+              // press's own click can only come once the finger has lifted.
+              if (click.pointerId === undefined ? !click.detail || !released : !mine(click)) return;
               eat(click);
               drop();
             };
@@ -109,7 +111,15 @@
             addEventListener('click', eatPress, options);
             addEventListener('pointerdown', (other) => other.isPrimary && other.pointerType === type && drop(), options);
             addEventListener('pointercancel', (other) => mine(other) && drop(), options);
-            addEventListener('pointerup', (other) => mine(other) && setTimeout(drop, 1000), options);
+            addEventListener(
+              'pointerup',
+              (other) => {
+                if (!mine(other)) return;
+                released = true;
+                setTimeout(drop, 1000);
+              },
+              options,
+            );
           }
           skip();
         };

@@ -158,13 +158,29 @@ it('lets a click made with the keyboard through while the guard waits for the ta
   expect(pressed).toHaveBeenCalledTimes(1);
 });
 
+const idlessClick = (target, detail = 1) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail }));
+
 it('eats the click from the press in a browser whose clicks carry no pointer id', async () => {
   const { button, pressed } = control();
   await skipAndEnd();
-  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 }));
+  release(button);
+  idlessClick(button, 0);
   expect(pressed).toHaveBeenCalledTimes(1);
-  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  idlessClick(button);
   expect(pressed).toHaveBeenCalledTimes(1);
+});
+
+it('lets a mouse click through while the skipping finger is still down, in a browser whose clicks carry no pointer id', async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
+  tap(button, { pointerId: 1, pointerType: 'mouse' });
+  release(button, { pointerId: 1 });
+  idlessClick(button);
+  expect(pressed).toHaveBeenCalledTimes(2);
+  // The finger lifts, and its own click is still eaten.
+  release(button);
+  idlessClick(button);
+  expect(pressed).toHaveBeenCalledTimes(2);
 });
 
 it('skips the exit for a finger that lands before it, and keeps its click when it lifts after', async () => {
