@@ -1,8 +1,8 @@
 // Service worker template. The build (see vite.config.js) fills in VERSION and PRECACHE and writes it to dist/sw.js.
-const VERSION = '6f0b268675b5';
-const PRECACHE = ["/","/apple-touch-icon.png","/assets/index-Ad8CiceR.js","/assets/index-D_Qk4JPx.css","/favicon-32.png","/icon-192.png","/icon-512.png","/icon-maskable-512.png","/icon.svg","/manifest.webmanifest"];
+const VERSION = '48e9cb9cb630';
+const PRECACHE = ["/","/apple-touch-icon.png","/assets/index-BYH7UJyh.js","/assets/index-D_Qk4JPx.css","/favicon-32.png","/icon-192.png","/icon-512.png","/icon-maskable-512.png","/icon.svg","/manifest.webmanifest"];
 // SHA-256 of the built index.html, so install can tell when a CDN edge still serves the previous page.
-const SHELL_HASH = '1f21da670a8fd565e4cd41b20b088f4b8c13dce9e41325302e46059b5b8d1661';
+const SHELL_HASH = '66cc411f5da18a9ff131ba5eb59ddad938270588cbed93373fc889182e60cc6b';
 const PREFIX = 'raven-';
 const CACHE = `${PREFIX}${VERSION}`;
 
