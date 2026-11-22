@@ -222,3 +222,49 @@ it('leaves another page alone when another tab starts a new test', async () => {
   expect(state.store.test.seed).toBe('def');
   expect(location.hash).toBe('#/history');
 });
+
+const reviewable = (seed, started, date) => ({ ...resultOf(seed, started, date), answers: Array(TEST_LENGTH).fill(null), generator: GENERATOR });
+const goTo = (hash) => {
+  location.hash = hash;
+  window.dispatchEvent(new HashChangeEvent('hashchange'));
+  svelte.flushSync();
+};
+
+it('opens the saved results of an older test of yours when Back reaches its entry after another tab started a new test', async () => {
+  const finished = { ...aTest(), started: 1000, finished: 5000 };
+  await open('#/test/abc', { test: finished, history: [reviewable('abc', 1000, 5000)] });
+  otherTabUpdates({ test: { ...aTest(), seed: 'def', started: 9000 } });
+  goTo('#/test/abc');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.querySelector('[aria-label="Past tests"]')).not.toBe(null);
+  expect(document.querySelector('.score')).not.toBe(null);
+});
+
+it('opens the saved results of an older test of yours after you started another one in this tab', async () => {
+  await open('#/test/abc', { history: [reviewable('abc', 1000, 5000)] });
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.querySelector('.score')).not.toBe(null);
+  state.startTest('def');
+  svelte.flushSync();
+  expect(document.querySelector('[aria-label="Option A"]')).not.toBe(null);
+  goTo('#/test/abc');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.querySelector('.score')).not.toBe(null);
+});
+
+it('goes home, without a shared-test invitation, for an older test of yours that cannot be reviewed', async () => {
+  await open('#/test/abc', { history: [{ ...resultOf('abc', 1000, 5000), generator: GENERATOR }] });
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.querySelector('.score')).toBe(null);
+  expect(document.body.textContent).toContain('Take the test');
+});
+
+it('still shows the shared-test invitation for a seed that is not in your history', async () => {
+  await open('#/test/xyz', { history: [reviewable('abc', 1000, 5000)] });
+  expect(document.body.textContent).toContain('Someone shared test');
+});
+
+it('still shows the shared-test invitation for a seed you took with an older generator, which built a different test', async () => {
+  await open('#/test/abc', { history: [{ ...reviewable('abc', 1000, 5000), generator: GENERATOR - 1 }, resultOf('abc', 500, 800)] });
+  expect(document.body.textContent).toContain('Someone shared test');
+});
