@@ -40,16 +40,19 @@
   let reviewing = $state(null);
 
   // A past result can be open while another test runs. Starting over loses that one, so it takes a second tap, as on Home.
-  let confirming = $state(false);
+  // The first tap names the attempt it warned about; if another tab replaces it meanwhile, the next tap warns again.
+  const attempt = () => (isRunning(store.test) ? `${store.test.seed}/${store.test.started}` : null);
+  let warned = $state(null);
+  const confirming = $derived(warned !== null && warned === attempt());
   $effect(() => {
-    if (!confirming) return;
-    const id = setTimeout(() => (confirming = false), 4000);
+    if (warned === null) return;
+    const id = setTimeout(() => (warned = null), 4000);
     return () => clearTimeout(id);
   });
 
   function begin() {
-    if (isRunning(store.test) && !confirming) {
-      confirming = true;
+    if (attempt() !== null && !confirming) {
+      warned = attempt();
       return;
     }
     startTest();

@@ -6,8 +6,8 @@ let app;
 let svelte;
 const animate = Element.prototype.animate;
 
-/** The app on a fresh page, with the puzzle generator made to fail when `broken` is set. */
-async function open({ hash = '', saved = null, broken = false } = {}) {
+/** The app on a fresh page, with the puzzle generator made to fail for the seeds in `broken`. */
+async function open({ hash = '', saved = null, broken = [] } = {}) {
   vi.resetModules();
   location.hash = hash;
   if (saved) localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR, ...saved }));
@@ -15,11 +15,12 @@ async function open({ hash = '', saved = null, broken = false } = {}) {
     const actual = await importActual();
     return {
       ...actual,
-      ...(broken && {
-        testBuilder: () => () => {
-          throw new Error('No puzzle found for seed xyz');
-        },
-      }),
+      testBuilder: (seed) =>
+        broken.includes(seed)
+          ? () => {
+              throw new Error(`No puzzle found for seed ${seed}`);
+            }
+          : actual.testBuilder(seed),
     };
   });
   svelte = await import('svelte');
@@ -76,7 +77,7 @@ describe('a past result while another test is running', () => {
 
   it('keeps the running test when the past result can’t be rebuilt, and goes home', async () => {
     const test = running();
-    const { store } = await open({ saved: { test, history: [past] }, hash: '#/history/5000/xyz', broken: true });
+    const { store } = await open({ saved: { test, history: [past] }, hash: '#/history/5000/xyz', broken: ['xyz'] });
     expect(document.body.textContent).toContain('Couldn’t build');
     button('Clear it and go home').click();
     svelte.flushSync();
@@ -84,5 +85,41 @@ describe('a past result while another test is running', () => {
     expect(store.history).toHaveLength(1);
     expect(location.hash).toBe('#/');
     expect(button('Resume test')).toBeDefined();
+  });
+
+  it('asks again when another tab replaced the running test after the first tap', async () => {
+    const { store } = await open({ saved: { test: running(), history: [past] }, hash: '#/history/5000/xyz' });
+    button('New test').click();
+    svelte.flushSync();
+    expect(button('Tap again to start over')).toBeDefined();
+    const other = { ...running(), seed: 'def', started: Date.now() + 5 };
+    store.test = other;
+    svelte.flushSync();
+    expect(button('New test')).toBeDefined();
+    button('New test').click();
+    svelte.flushSync();
+    expect(store.test).toEqual(other);
+    expect(button('Tap again to start over')).toBeDefined();
+  });
+
+  it('keeps the running test when you go Back home before tapping Clear it', async () => {
+    const test = running();
+    const { store } = await open({ saved: { test, history: [past] }, hash: '#/history/5000/xyz', broken: ['xyz'] });
+    expect(document.body.textContent).toContain('Couldn’t build');
+    const { go } = await import('../src/lib/router.svelte.js');
+    go();
+    svelte.flushSync();
+    button('Clear it and go home').click();
+    svelte.flushSync();
+    expect(store.test).toEqual(test);
+  });
+
+  it('still clears a saved test that can’t be scored at startup when the URL is a past result', async () => {
+    const { store } = await open({ saved: { test: { ...running(), started: 1000, deadline: 2000 }, history: [past] }, hash: '#/history/5000/xyz', broken: ['abc'] });
+    expect(document.body.textContent).toContain('Couldn’t build');
+    button('Clear it and go home').click();
+    svelte.flushSync();
+    expect(store.test).toBeNull();
+    expect(store.history).toHaveLength(1);
   });
 });
