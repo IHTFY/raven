@@ -111,7 +111,7 @@
               // A touch's click comes after the copy has gone, aimed at whatever is under the finger, so the
               // guard outlives the launch. It takes only that pointer's click: a keyboard click (pointerId -1) and
               // other fingers go through. A drag or a mouse press that loses its click leaves no click to eat, so
-              // the pointer's next press or cancel, or a second, drops the guard before it can take a real click.
+              // a new gesture (the next primary press), a cancel, or a second after release drops the guard.
               if (event.type === 'pointerdown' && event.isPrimary && event.button === 0) {
                 const guard = new AbortController();
                 const drop = () => guard.abort();
@@ -123,11 +123,11 @@
                   eat(click);
                   drop();
                 };
-                const dropMine = (other) => mine(other) && drop();
-                addEventListener('click', eatPress, { capture: true, signal: guard.signal });
-                addEventListener('pointercancel', dropMine, { capture: true, signal: guard.signal });
-                addEventListener('pointerdown', dropMine, { capture: true, signal: guard.signal });
-                setTimeout(drop, 1000);
+                const options = { capture: true, signal: guard.signal };
+                addEventListener('click', eatPress, options);
+                addEventListener('pointerdown', (other) => other.isPrimary && drop(), options);
+                addEventListener('pointercancel', (other) => mine(other) && drop(), options);
+                addEventListener('pointerup', (other) => mine(other) && setTimeout(drop, 1000), options);
               }
               skip();
             };

@@ -108,17 +108,44 @@ it('lets the next press through when the skip ended without a click', async () =
   expect(pressed).toHaveBeenCalledTimes(2);
 });
 
-it('drops the guard a second after the skip', async () => {
+const release = (target, init = {}) => target.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2, ...init }));
+
+it('keeps the guard while the finger is held', async () => {
   vi.useFakeTimers();
   try {
     const { button, pressed } = control();
     tap(document.getElementById('launch'));
+    // A long hold: the click comes on release, well after a second.
+    vi.advanceTimersByTime(2000);
+    release(button);
+    click(button);
+    expect(pressed).not.toHaveBeenCalled();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('drops the guard a second after a release that brought no click', async () => {
+  vi.useFakeTimers();
+  try {
+    const { button, pressed } = control();
+    tap(document.getElementById('launch'));
+    release(document.body);
     vi.advanceTimersByTime(1000);
     click(button);
     expect(pressed).toHaveBeenCalledTimes(1);
   } finally {
     vi.useRealTimers();
   }
+});
+
+it('lets a new tap through after a drag in a browser whose clicks carry no pointer id', async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
+  // The drag ended without a click; the next tap is a new finger with its own id.
+  tap(button, { pointerId: 3 });
+  button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+  expect(pressed).toHaveBeenCalledTimes(2);
 });
 
 it('lets a click made with the keyboard through while the guard waits for the tap’s click', async () => {
