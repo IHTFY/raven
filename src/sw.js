@@ -62,33 +62,62 @@ async function cached(request, anyVersion = false) {
 // How long a page or unhashed file waits for the network before the cached copy is served instead.
 // A connection that never answers (a captive portal, a dead Wi-Fi) would otherwise leave a blank page.
 const NETWORK_WAIT = 3000;
-const SLOW = Symbol('slow');
 
-// Resolves once the whole body has arrived, so a server that sends headers and then stalls counts as
-// slow too. Responses without a body (redirects, 204) pass through as they are.
-async function fetchWhole(request) {
-  const response = await fetch(request);
-  if (!response.body || response.type === 'opaqueredirect') return response;
-  return new Response(await response.arrayBuffer(), response);
+const SLOW = Symbol('slow');
+const DONE = Symbol('done');
+
+// Stops the download of a response that won't be used.
+function discard(response) {
+  response.body?.cancel().catch(() => {});
 }
 
 // The cached copy is the one precached with this version's assets, so it is never replaced by a
 // live response: a page from a newer deploy could reference assets this cache doesn't hold.
-// With no cached copy, the request keeps waiting on the network.
+// The cached copy is served when the network stays silent, when the server answers with an error, and
+// when a response that has a cached copy stalls or fails before its whole body has arrived. With no
+// cached copy, the request keeps waiting on the network, and a response is passed on as soon as its
+// headers arrive.
 async function networkElseCache(request, fallback) {
-  const network = fetchWhole(request);
+  const network = fetch(request);
   let timer;
-  const slow = new Promise((resolve) => {
+  const deadline = new Promise((resolve) => {
     timer = setTimeout(resolve, NETWORK_WAIT, SLOW);
   });
-  let response;
   try {
-    response = await Promise.race([network, slow]);
+    const response = await Promise.race([network, deadline]);
     if (response === SLOW) {
       const copy = await cached(fallback);
-      if (copy) return copy;
-      response = await network;
+      if (copy) {
+        // The response may still arrive; its body is not wanted.
+        network.then(discard, () => {});
+        return copy;
+      }
+      return await network;
     }
+    const copy = await cached(fallback);
+    if (response.status >= 500) {
+      if (!copy) return response;
+      discard(response);
+      return copy;
+    }
+    if (!copy || !response.body || response.type === 'opaqueredirect') return response;
+    // Count the whole body toward the wait: a server that sends headers and then stalls is as slow as
+    // one that sends nothing. The clone is read to its end while the original is kept for the page.
+    const reader = response.clone().body.getReader();
+    const finished = (async () => {
+      while (!(await reader.read()).done);
+      return DONE;
+    })();
+    let outcome;
+    try {
+      outcome = await Promise.race([finished, deadline]);
+    } catch {
+      outcome = SLOW;
+    }
+    if (outcome === DONE) return response;
+    reader.cancel().catch(() => {});
+    discard(response);
+    return copy;
   } catch (error) {
     const copy = await cached(fallback);
     if (copy) return copy;
@@ -96,9 +125,6 @@ async function networkElseCache(request, fallback) {
   } finally {
     clearTimeout(timer);
   }
-  // A server error gets the cached copy when there is one.
-  if (response.status >= 500) return (await cached(fallback)) ?? response;
-  return response;
 }
 
 // Build output with a hash in its name never changes.

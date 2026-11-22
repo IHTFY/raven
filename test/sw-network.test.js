@@ -21,14 +21,28 @@ function startWorker(stored, network) {
     addEventListener: (type, listener) => (listeners[type] = listener),
   };
   new Function('self', 'caches', 'fetch', template)(self, caches, network);
-  return (path, mode = 'navigate') => {
+  const respond = (path, mode = 'navigate') => {
     let answer;
     listeners.fetch({
       request: { method: 'GET', url: `https://iq.test${path}`, mode },
       respondWith: (promise) => (answer = promise),
     });
-    return answer.then((response) => response.text());
+    return answer;
   };
+  const request = (path, mode) => respond(path, mode).then((response) => response.text());
+  request.response = respond;
+  return request;
+}
+
+// A response whose headers are in but whose body sends `chunk` and then stalls; `cancelled` records
+// whether the download was stopped.
+function stalledResponse(chunk = '', init = { status: 200 }) {
+  const state = { cancelled: false };
+  const body = new ReadableStream({
+    start: (controller) => chunk && controller.enqueue(new TextEncoder().encode(chunk)),
+    cancel: () => (state.cancelled = true),
+  });
+  return { state, response: new Response(body, init) };
 }
 
 const never = () => new Promise(() => {});
@@ -51,12 +65,37 @@ describe('network first, cache as fallback', () => {
     await expect(body).resolves.toBe('cached manifest');
   });
 
-  it('serves the cached page when the headers arrive but the body stalls', async () => {
-    const stalled = new Response(new ReadableStream({ start() {} }), { status: 200 });
-    const request = startWorker({ '/': 'cached page' }, async () => stalled);
+  it('serves the cached page when the headers arrive but the body stalls, and stops the download', async () => {
+    const { response, state } = stalledResponse('<html>');
+    const request = startWorker({ '/': 'cached page' }, async () => response);
     const body = request('/');
     await vi.advanceTimersByTimeAsync(3500);
     await expect(body).resolves.toBe('cached page');
+    expect(state.cancelled).toBe(true);
+  });
+
+  it('passes a streaming response on as soon as its headers arrive when nothing is cached', async () => {
+    const { response } = stalledResponse('<html>');
+    const request = startWorker({}, async () => response);
+    const answer = await request.response('/');
+    expect(answer).toBe(response);
+  });
+
+  it('serves the cached page at once when a server error has a stalled body, and stops the download', async () => {
+    const { response, state } = stalledResponse('', { status: 503 });
+    const request = startWorker({ '/': 'cached page' }, async () => response);
+    await expect(request('/')).resolves.toBe('cached page');
+    expect(state.cancelled).toBe(true);
+  });
+
+  it('stops the download of a response that arrives after the cached page was served', async () => {
+    const { response, state } = stalledResponse('<html>');
+    const request = startWorker({ '/': 'cached page' }, () => new Promise((resolve) => setTimeout(resolve, 5000, response)));
+    const body = request('/');
+    await vi.advanceTimersByTimeAsync(3500);
+    await expect(body).resolves.toBe('cached page');
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(state.cancelled).toBe(true);
   });
 
   it('serves the cached page when the body fails, without an unhandled rejection', async () => {
@@ -76,9 +115,14 @@ describe('network first, cache as fallback', () => {
     await expect(request('/')).resolves.toBe('cached page');
   });
 
-  it('keeps status and headers of a live response', async () => {
-    const request = startWorker({ '/': 'cached page' }, async () => new Response('live page', { status: 200, headers: { 'x-a': 'b' } }));
-    await expect(request('/')).resolves.toBe('live page');
+  it('passes on the live response itself, with its status, headers and body', async () => {
+    const live = new Response('live page', { status: 203, headers: { 'x-a': 'b' } });
+    const request = startWorker({ '/': 'cached page' }, async () => live);
+    const answer = await request.response('/');
+    expect(answer).toBe(live);
+    expect(answer.status).toBe(203);
+    expect(answer.headers.get('x-a')).toBe('b');
+    await expect(answer.text()).resolves.toBe('live page');
   });
 
   it('serves the network response when it arrives in time', async () => {
