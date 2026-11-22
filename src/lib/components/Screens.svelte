@@ -25,6 +25,11 @@
     if (page === 'test') {
       const test = store.test;
       if (test && (!seed || seed === test.seed)) return { screen: test.finished ? 'results' : 'quiz', key: test.seed };
+      // A seed the player has already taken isn't a shared test: an older entry in the tab's history (Back, or a saved link) opens its result.
+      const taken = isSeed(seed) ? store.history.filter((h) => h.seed === seed) : [];
+      const past = taken.find(canReview);
+      if (past) return { screen: 'past', key: resultKey(past), past };
+      if (taken.length) return { screen: 'home' };
       if (isSeed(seed)) return { screen: 'home', shared: seed };
     }
     return { screen: 'home' };
