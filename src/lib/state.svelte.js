@@ -481,8 +481,9 @@ export function expireTest() {
   if (isRunning(store.test) && Date.now() >= store.test.deadline) finishTest();
 }
 
-/** Drop the saved work whose seed can't be built: the practice if that's the screen that failed, otherwise the test. The other is kept. */
+/** Drop the saved work whose seed can't be built: the practice if that's the screen that failed, the test otherwise. A past result ('history') isn't saved work, so both are kept. */
 export function clearUnbuildable(page) {
+  if (page === 'history') return;
   if (page === 'practice') store.practice = null;
   else store.test = null;
 }

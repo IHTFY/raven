@@ -1,12 +1,18 @@
 <script>
   import { go, route } from '../router.svelte.js';
-  import { clearUnbuildable } from '../state.svelte.js';
+  import { clearUnbuildable, store } from '../state.svelte.js';
 
   /** `reset` shows the screens again once the saved work is gone. */
   let { reset } = $props();
 
+  // A finished test opened from History, or from an old link to its seed, isn't the saved test.
+  function failedPage() {
+    const [page, seed] = route.path;
+    return page === 'history' || (page === 'test' && seed && seed !== store.test?.seed) ? 'history' : page;
+  }
+
   function leave() {
-    clearUnbuildable(route.path[0]);
+    clearUnbuildable(failedPage());
     go();
     reset();
   }
