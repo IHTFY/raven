@@ -59,16 +59,34 @@ async function cached(request, anyVersion = false) {
   }
 }
 
+// How long a page or unhashed file waits for the network before the cached copy is served instead.
+// A connection that never answers (a captive portal, a dead Wi-Fi) would otherwise leave a blank page.
+const NETWORK_WAIT = 3000;
+const SLOW = Symbol('slow');
+
 // The cached copy is the one precached with this version's assets, so it is never replaced by a
 // live response: a page from a newer deploy could reference assets this cache doesn't hold.
+// With no cached copy, the request keeps waiting on the network.
 async function networkElseCache(request, fallback) {
+  const network = fetch(request);
+  let timer;
+  const slow = new Promise((resolve) => {
+    timer = setTimeout(resolve, NETWORK_WAIT, SLOW);
+  });
   let response;
   try {
-    response = await fetch(request);
+    response = await Promise.race([network, slow]);
+    if (response === SLOW) {
+      const copy = await cached(fallback);
+      if (copy) return copy;
+      response = await network;
+    }
   } catch (error) {
     const copy = await cached(fallback);
     if (copy) return copy;
     throw error;
+  } finally {
+    clearTimeout(timer);
   }
   // A server error gets the cached copy when there is one.
   if (response.status >= 500) return (await cached(fallback)) ?? response;
