@@ -101,7 +101,28 @@
             // A tap skips to the end, and so does a rotation, which moves what the pieces fly to. The installed
             // app gets a resize event as it starts with the size unchanged; that one must not cut the motion.
             const skip = () => animations.forEach((a) => a.finish());
-            overlay.addEventListener('pointerdown', skip, { signal: exit.signal });
+            const eat = (event) => {
+              event.preventDefault();
+              event.stopImmediatePropagation();
+            };
+            // While the copy shows, a tap or key only skips it: nothing behind it reacts.
+            const swallow = (event) => {
+              eat(event);
+              // A touch's click comes after the copy has gone, aimed at whatever is under the finger, so the
+              // guard outlives the launch. A drag or a mouse press that loses its click leaves no click to eat:
+              // the next press, a cancel, or a second drops the guard so it can't take a real click later.
+              if (event.type === 'pointerdown' && event.isPrimary && event.button === 0) {
+                const guard = new AbortController();
+                const drop = () => guard.abort();
+                addEventListener('click', eat, { capture: true, once: true, signal: guard.signal });
+                addEventListener('pointercancel', drop, { capture: true, signal: guard.signal });
+                addEventListener('pointerdown', drop, { capture: true, signal: guard.signal });
+                setTimeout(drop, 1000);
+              }
+              skip();
+            };
+            addEventListener('pointerdown', swallow, { capture: true, signal: exit.signal });
+            addEventListener('keydown', swallow, { capture: true, signal: exit.signal });
             addEventListener(
               'resize',
               () => {

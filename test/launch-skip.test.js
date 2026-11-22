@@ -48,3 +48,66 @@ it('skips to the end on a tap', () => {
   document.getElementById('launch').dispatchEvent(new Event('pointerdown'));
   expect(animation.finish).toHaveBeenCalled();
 });
+
+const tap = (target, init = {}) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, isPrimary: true, button: 0, pointerType: 'touch', ...init }));
+const click = (target) => target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+// A control under the copy, the way Home's buttons sit under it.
+function control() {
+  const button = document.createElement('button');
+  const pressed = vi.fn();
+  button.addEventListener('pointerdown', pressed);
+  button.addEventListener('click', pressed);
+  document.getElementById('app').append(button);
+  return { button, pressed };
+}
+
+it('keeps a tap that skips from pressing the control under it once the copy has gone', async () => {
+  const { button, pressed } = control();
+  tap(document.getElementById('launch'));
+  expect(animation.finish).toHaveBeenCalled();
+  settle();
+  await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
+  // The touch's click arrives after the launch ended, aimed at whatever is under the finger.
+  click(button);
+  expect(pressed).not.toHaveBeenCalled();
+  // The next tap is the player's own.
+  tap(button);
+  click(button);
+  expect(pressed).toHaveBeenCalledTimes(2);
+});
+
+it('lets the next press through when the skip ended without a click', async () => {
+  const { button, pressed } = control();
+  tap(document.getElementById('launch'));
+  settle();
+  await vi.waitFor(() => expect(document.getElementById('launch')).toBeNull());
+  // A drag, or a mouse press that lost its click with the copy: the guard must not take the next click.
+  tap(button, { pointerType: 'mouse' });
+  click(button);
+  expect(pressed).toHaveBeenCalledTimes(2);
+});
+
+it('drops the guard a second after the skip', async () => {
+  vi.useFakeTimers();
+  try {
+    const { button, pressed } = control();
+    tap(document.getElementById('launch'));
+    vi.advanceTimersByTime(1000);
+    click(button);
+    expect(pressed).toHaveBeenCalledTimes(1);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it('skips on a key and keeps it from the page', () => {
+  const pressed = vi.fn();
+  document.addEventListener('keydown', pressed);
+  const key = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+  document.body.dispatchEvent(key);
+  document.removeEventListener('keydown', pressed);
+  expect(animation.finish).toHaveBeenCalled();
+  expect(key.defaultPrevented).toBe(true);
+  expect(pressed).not.toHaveBeenCalled();
+});
