@@ -64,11 +64,19 @@ async function cached(request, anyVersion = false) {
 const NETWORK_WAIT = 3000;
 const SLOW = Symbol('slow');
 
+// Resolves once the whole body has arrived, so a server that sends headers and then stalls counts as
+// slow too. Responses without a body (redirects, 204) pass through as they are.
+async function fetchWhole(request) {
+  const response = await fetch(request);
+  if (!response.body || response.type === 'opaqueredirect') return response;
+  return new Response(await response.arrayBuffer(), response);
+}
+
 // The cached copy is the one precached with this version's assets, so it is never replaced by a
 // live response: a page from a newer deploy could reference assets this cache doesn't hold.
 // With no cached copy, the request keeps waiting on the network.
 async function networkElseCache(request, fallback) {
-  const network = fetch(request);
+  const network = fetchWhole(request);
   let timer;
   const slow = new Promise((resolve) => {
     timer = setTimeout(resolve, NETWORK_WAIT, SLOW);

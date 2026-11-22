@@ -51,6 +51,36 @@ describe('network first, cache as fallback', () => {
     await expect(body).resolves.toBe('cached manifest');
   });
 
+  it('serves the cached page when the headers arrive but the body stalls', async () => {
+    const stalled = new Response(new ReadableStream({ start() {} }), { status: 200 });
+    const request = startWorker({ '/': 'cached page' }, async () => stalled);
+    const body = request('/');
+    await vi.advanceTimersByTimeAsync(3500);
+    await expect(body).resolves.toBe('cached page');
+  });
+
+  it('serves the cached page when the body fails, without an unhandled rejection', async () => {
+    const failing = new Response(
+      new ReadableStream({ pull: () => new Promise((_, reject) => setTimeout(reject, 5000, new TypeError('reset'))) }),
+    );
+    const request = startWorker({ '/': 'cached page' }, async () => failing);
+    const body = request('/');
+    await vi.advanceTimersByTimeAsync(3500);
+    await expect(body).resolves.toBe('cached page');
+    await vi.advanceTimersByTimeAsync(3000);
+  });
+
+  it('serves the cached page when the body fails before the wait is over', async () => {
+    const failing = new Response(new ReadableStream({ pull: () => Promise.reject(new TypeError('reset')) }));
+    const request = startWorker({ '/': 'cached page' }, async () => failing);
+    await expect(request('/')).resolves.toBe('cached page');
+  });
+
+  it('keeps status and headers of a live response', async () => {
+    const request = startWorker({ '/': 'cached page' }, async () => new Response('live page', { status: 200, headers: { 'x-a': 'b' } }));
+    await expect(request('/')).resolves.toBe('live page');
+  });
+
   it('serves the network response when it arrives in time', async () => {
     const request = startWorker({ '/': 'cached page' }, () => new Promise((resolve) => setTimeout(resolve, 1000, new Response('live page'))));
     const body = request('/');
