@@ -5,7 +5,7 @@
 
 import { EASIEST, GENERATOR, GROUPS, HARDEST, TEST_LENGTH, generatePuzzle, testBuilder } from './engine/generate.js';
 import { isSeed, randomSeed } from './engine/rng.js';
-import { go } from './router.svelte.js';
+import { go, route } from './router.svelte.js';
 import { flushSync, untrack } from 'svelte';
 import { prefersReducedMotion } from 'svelte/motion';
 import { MediaQuery } from 'svelte/reactivity';
@@ -276,6 +276,11 @@ function sync(heard) {
     log: changed ? union(theirs.log, mine.log, JSON.stringify, LOG_LENGTH) : mine.log,
   };
   for (const [key, value] of Object.entries(shown)) if (value !== mine[key] && !same(value, mine[key])) store[key] = value;
+  // A test this tab had on screen, replaced by another tab's new one, hands its route over: the old seed would read as a shared test.
+  if (mine.test && shown.test && shown.test.seed !== mine.test.seed) {
+    const [page, seed] = untrack(() => route.path);
+    if (page === 'test' && seed === mine.test.seed) go(`test/${shown.test.seed}`, { replace: true });
+  }
 
   let stored = { ...shown, test: test.stored };
   let written;

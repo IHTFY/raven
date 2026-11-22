@@ -7,8 +7,10 @@ export const route = $state({ path: parse() });
 addEventListener('hashchange', () => (route.path = parse()));
 
 // Set the route right away too, so a state change and its new route render together.
-export const go = (path = '') => {
-  location.hash = `/${path}`;
+// `replace` swaps the current history entry, for a move the player didn't make (Back skips it).
+export const go = (path = '', { replace = false } = {}) => {
+  if (replace) history.replaceState(history.state, '', `#/${path}`);
+  else location.hash = `/${path}`;
   route.path = parse();
 };
 
