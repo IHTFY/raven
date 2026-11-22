@@ -1,12 +1,26 @@
 <script>
   import { go, route } from '../router.svelte.js';
-  import { clearUnbuildable } from '../state.svelte.js';
+  import { clearUnbuildable, puzzlesFor, store } from '../state.svelte.js';
 
   /** `reset` shows the screens again once the saved work is gone. */
   let { reset } = $props();
 
+  // Decided now, while the failed screen is still the route: going Back before the tap must not change what gets cleared.
+  // The saved test is cleared only if it is the one that can't be built. A past result that fails leaves it alone.
+  const failed = (() => {
+    const page = route.path[0];
+    if (page === 'practice') return 'practice';
+    if (!store.test) return 'history';
+    try {
+      puzzlesFor(store.test.seed);
+      return 'history';
+    } catch {
+      return 'test';
+    }
+  })();
+
   function leave() {
-    clearUnbuildable(route.path[0]);
+    clearUnbuildable(failed);
     go();
     reset();
   }

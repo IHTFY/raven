@@ -2,7 +2,7 @@
   import { noteGameFinished } from '../ads.js';
   import { go, shareUrl } from '../router.svelte.js';
   import { duration, shortDate } from '../format.js';
-  import { elapsed, prepareTest, puzzlesFor, startTest, store } from '../state.svelte.js';
+  import { elapsed, isRunning, prepareTest, puzzlesFor, startTest, store } from '../state.svelte.js';
   import { benchmarkOf } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import CountUp from './CountUp.svelte';
@@ -38,6 +38,25 @@
   $effect(() => prepareTest());
 
   let reviewing = $state(null);
+
+  // A past result can be open while another test runs. Starting over loses that one, so it takes a second tap, as on Home.
+  // The first tap names the attempt it warned about; if another tab replaces it meanwhile, the next tap warns again.
+  const attempt = () => (isRunning(store.test) ? `${store.test.seed}/${store.test.started}` : null);
+  let warned = $state(null);
+  const confirming = $derived(warned !== null && warned === attempt());
+  $effect(() => {
+    if (warned === null) return;
+    const id = setTimeout(() => (warned = null), 4000);
+    return () => clearTimeout(id);
+  });
+
+  function begin() {
+    if (attempt() !== null && !confirming) {
+      warned = attempt();
+      return;
+    }
+    startTest();
+  }
   let toast = $state(null);
 
   // Lets Home carry an ad from here on.
@@ -92,7 +111,7 @@
     <p class="muted small">Tap a puzzle to see the answer and why.</p>
 
     <footer>
-      <button class="btn big primary" onclick={() => startTest()}>New test</button>
+      <button class="btn big primary" onclick={begin}>{confirming ? 'Tap again to start over' : 'New test'}</button>
       <button class="btn big" onclick={() => go('practice')}>Practice</button>
     </footer>
   </main>
