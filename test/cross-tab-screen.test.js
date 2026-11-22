@@ -191,3 +191,32 @@ it('opens each of two past tests that ended in the same millisecond', async () =
   await open('#/history/10', { history });
   expect(document.querySelector('.score').textContent).toContain(duration(61));
 });
+
+const resultOf = (seed, started, date) => ({ seed, score: 0, total: TEST_LENGTH, seconds: 4, date, started });
+
+it('moves from the results of a finished test to the test another tab starts, not to a shared-test invitation', async () => {
+  const finished = { ...aTest(), started: 1000, finished: 5000 };
+  await open('#/test/abc', { test: finished, history: [resultOf('abc', 1000, 5000)] });
+  expect(document.body.textContent).toContain('Results');
+  otherTabUpdates({ test: { ...aTest(), seed: 'def', started: 9000 } });
+  expect(state.store.test.seed).toBe('def');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(location.hash).toBe('#/test/def');
+  expect(document.querySelector('[aria-label="Option A"]')).not.toBe(null);
+});
+
+it('moves from a test another tab has finished to the test that tab starts next', async () => {
+  const running = { ...aTest(), started: 1000 };
+  await open('#/test/abc', { test: running });
+  otherTabUpdates({ test: { ...aTest(), seed: 'def', started: 9000 }, history: [resultOf('abc', 1000, 5000)] });
+  expect(state.store.test.seed).toBe('def');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(location.hash).toBe('#/test/def');
+});
+
+it('leaves another page alone when another tab starts a new test', async () => {
+  await open('#/history', { test: { ...aTest(), started: 1000, finished: 5000 } });
+  otherTabUpdates({ test: { ...aTest(), seed: 'def', started: 9000 } });
+  expect(state.store.test.seed).toBe('def');
+  expect(location.hash).toBe('#/history');
+});
