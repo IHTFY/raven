@@ -101,8 +101,8 @@
             const mine = (other) => other.pointerId === pointer;
             let released = false;
             const eatPress = (click) => {
-              // Browsers whose clicks carry no pointer id: a click from a press counts it in detail, and the
-              // press's own click can only come once the finger has lifted.
+              // Browsers whose clicks carry no pointer id: a click from a press counts it in detail, and it
+              // belongs to the pointer that lifted last.
               if (click.pointerId === undefined ? !click.detail || !released : !mine(click)) return;
               eat(click);
               drop();
@@ -114,9 +114,8 @@
             addEventListener(
               'pointerup',
               (other) => {
-                if (!mine(other)) return;
-                released = true;
-                setTimeout(drop, 1000);
+                released = mine(other);
+                if (released) setTimeout(drop, 1000);
               },
               options,
             );

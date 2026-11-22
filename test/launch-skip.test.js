@@ -183,6 +183,17 @@ it('lets a mouse click through while the skipping finger is still down, in a bro
   expect(pressed).toHaveBeenCalledTimes(2);
 });
 
+it('lets a mouse click through after a drag that skipped, in a browser whose clicks carry no pointer id', async () => {
+  const { button, pressed } = control();
+  await skipAndEnd();
+  // The finger lifts from a drag, with no click; then the mouse clicks.
+  release(button);
+  tap(button, { pointerId: 1, pointerType: 'mouse' });
+  release(button, { pointerId: 1 });
+  idlessClick(button);
+  expect(pressed).toHaveBeenCalledTimes(2);
+});
+
 it('skips the exit for a finger that lands before it, and keeps its click when it lifts after', async () => {
   // Start over with a launch whose exit hasn't begun, as while the app loads under the copy.
   settle();
