@@ -316,7 +316,7 @@ function sync(heard) {
     written = JSON.stringify({ generator: GENERATOR, ...stored });
     // A tab still on a version from before `begun` drops it from every save it writes. Adding it back each time would have
     // the two tabs rewrite the save in turn without end, so a save that lacks only that stays as it is.
-    if (raw && !raw.includes('"begun":') && JSON.stringify({ generator: GENERATOR, ...stored, begun: undefined }) === raw) written = raw;
+    if (raw && written !== raw && JSON.stringify({ generator: GENERATOR, ...stored, begun: undefined }) === raw) written = raw;
   }
 
   let inStorage = raw;
