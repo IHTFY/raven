@@ -163,10 +163,16 @@ export const store = $state(load());
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Both lists as one, newest first, with each record once. A record of `first` wins when two share a key. */
+/**
+ * Both lists as one, newest first, with each record once. Of two that share a key, the later one wins (a test started again),
+ * and on the same date the one in `first`.
+ */
 function union(first, second, keyOf, limit) {
   const records = new Map();
-  for (const x of [...first, ...second]) if (!records.has(keyOf(x))) records.set(keyOf(x), x);
+  for (const x of [...first, ...second]) {
+    const kept = records.get(keyOf(x));
+    if (!kept || x.date > kept.date) records.set(keyOf(x), x);
+  }
   return [...records]
     .sort(([ka, a], [kb, b]) => b.date - a.date || (ka < kb ? -1 : 1))
     .slice(0, limit)
@@ -306,7 +312,12 @@ function sync(heard) {
     adding = [...results.map(resultKey), ...attempts.map((a) => JSON.stringify(a))];
     written = adding.length || shown.theme !== theirs.theme ? JSON.stringify({ ...newer, theme: shown.theme, history: [...results, ...list(newer.history)], log: [...attempts, ...list(newer.log)] }) : raw;
     stored = { ...stored, test: theirs.test, practice: theirs.practice };
-  } else written = JSON.stringify({ generator: GENERATOR, ...stored });
+  } else {
+    written = JSON.stringify({ generator: GENERATOR, ...stored });
+    // A tab still on a version from before `begun` drops it from every save it writes. Adding it back each time would have
+    // the two tabs rewrite the save in turn without end, so a save that lacks only that stays as it is.
+    if (raw && !raw.includes('"begun":') && JSON.stringify({ generator: GENERATOR, ...stored, begun: undefined }) === raw) written = raw;
+  }
 
   let inStorage = raw;
   if (written !== raw && canSave && canRead) {

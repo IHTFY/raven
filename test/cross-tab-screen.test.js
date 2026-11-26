@@ -309,6 +309,10 @@ it('calls your own test replaced by another tab your own after this tab reloads'
   expect(state.store.test.seed).toBe('def');
   expect(document.body.textContent).not.toContain('Someone shared test');
   expect(document.body.textContent).toContain('You didn’t finish test abc');
+  // The test running now is a tap away.
+  tapButton('Resume your test');
+  expect(location.hash).toBe('#/test/def');
+  expect(document.querySelector('[aria-label="Option A"]')).not.toBe(null);
 });
 
 it('still shows the shared-test invitation for a seed you started with an older generator, which builds a different test', async () => {
