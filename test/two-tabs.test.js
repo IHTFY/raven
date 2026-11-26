@@ -117,6 +117,44 @@ describe('two tabs', () => {
     expect(saved().history.map((h) => h.date)).toEqual([10]);
   });
 
+  it('keeps the tests both tabs started, and only well-formed ones from a save', async () => {
+    localStorage.setItem('raven', whole({ begun: [{ seed: 'old', date: 5, generator: GENERATOR }, { seed: 'bad seed', date: 6, generator: GENERATOR }, { seed: 'nodate', generator: GENERATOR }] }));
+    const { startTest, store, flushSync } = await openTab();
+    expect(store.begun.map((b) => b.seed)).toEqual(['old']);
+    startTest('mine');
+    flushSync();
+    otherTabWrites({ begun: [{ seed: 'theirs', date: 7, generator: GENERATOR }, { seed: 'old', date: 5, generator: GENERATOR }] });
+    store.theme = 'dark';
+    flushSync();
+    expect(store.begun.map((b) => b.seed)).toEqual(['mine', 'theirs', 'old']);
+    expect(saved().begun.map((b) => b.seed)).toEqual(['mine', 'theirs', 'old']);
+  });
+
+  it('leaves alone a save from a tab on a version from before started tests were kept, so the two tabs settle', async () => {
+    const value = whole({ history: [aResult(9)] });
+    localStorage.setItem('raven', value);
+    const { store, flushSync } = await openTab();
+    // Opening this tab adds nothing the other tab would drop again.
+    expect(localStorage.getItem('raven')).toBe(value);
+    // The older tab saves a change: this tab takes it and doesn't write the save back.
+    otherTabWrites({ theme: 'dark', history: [aResult(10), aResult(9)] });
+    flushSync();
+    expect(store.theme).toBe('dark');
+    expect(saved().begun).toBe(undefined);
+  });
+
+  it('keeps the later start of a test started again while another tab saved an earlier one', async () => {
+    localStorage.setItem('raven', whole({ begun: [{ seed: 'abc', date: 5, generator: GENERATOR }] }));
+    const { startTest, store, flushSync } = await openTab();
+    // Another tab saves before this tab has heard about it.
+    localStorage.setItem('raven', whole({ theme: 'dark', begun: [{ seed: 'abc', date: 5, generator: GENERATOR }] }));
+    startTest('abc');
+    flushSync();
+    expect(store.begun).toHaveLength(1);
+    expect(store.begun[0].date).toBeGreaterThan(5);
+    expect(saved().begun[0].date).toBe(store.begun[0].date);
+  });
+
   it('follows the same test when the other tab answers or finishes it', async () => {
     const { startTest, store, flushSync } = await openTab();
     startTest('abc');

@@ -10,8 +10,8 @@
   import Icon from './Icon.svelte';
   import Logo from './Logo.svelte';
 
-  /** `shared` is a seed from a link someone sent. */
-  let { shared = null } = $props();
+  /** `shared` is a seed from a link: one someone sent, or, when `own` is set, a test of yours left unfinished. */
+  let { shared = null, own = false } = $props();
 
   const running = $derived(isRunning(store.test) ? store.test : null);
   const theme = $derived(currentTheme());
@@ -84,10 +84,19 @@
 
   <section class="actions">
     {#if shared}
-      <p class="note">Someone shared test <b>{shared}</b> with you.</p>
+      {#if own}
+        <p class="note">You didn’t finish test <b>{shared}</b>.</p>
+      {:else}
+        <p class="note">Someone shared test <b>{shared}</b> with you.</p>
+      {/if}
       <button class="btn big primary" onclick={() => begin(shared)}>
-        {confirming ? 'Tap again to replace your test' : 'Take this test'}
+        {confirming ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
       </button>
+      {#if running}
+        <button class="btn" onclick={() => go(`test/${running.seed}`)}>
+          Resume your test <span class="muted tabular">{clock(running.deadline - now)} left</span>
+        </button>
+      {/if}
     {:else if running}
       <button class="btn big primary" onclick={() => go(`test/${running.seed}`)}>
         Resume test <span class="muted tabular">{clock(running.deadline - now)} left</span>

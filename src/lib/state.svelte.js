@@ -19,7 +19,7 @@ export const HISTORY_LENGTH = 100;
 /** Practice has no clock, so a puzzle left open for longer than this counts as this long. */
 export const PRACTICE_MAX_SECONDS = 600;
 
-const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
+const blank = () => ({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [], begun: [] });
 
 /** The last moment the date formatter shows (the end of year 9999); a saved date must fall between 0 and this. */
 const MAX_DATE = 253402300799999;
@@ -70,6 +70,13 @@ const isResult = (h) =>
   (h.kinds === undefined || isKinds(h.kinds, h.total)) &&
   (h.outcomes === undefined || isOutcomes(h.outcomes, h.total));
 
+/**
+ * A test this player started, kept after it is replaced, so its link reads as their own rather than as one someone shared.
+ * The generator is kept because another generator builds a different test from the same seed.
+ */
+const isBegun = (b) => isSeed(b?.seed) && isDate(b.date) && Number.isInteger(b.generator);
+const begunKey = (b) => `${b.generator}/${b.seed}`;
+
 /** What tells one past test from another, in the history and in links. Two tests can end in the same millisecond, so the date alone doesn't. */
 export const resultKey = (h) => `${h.date}/${h.seed}`;
 
@@ -102,6 +109,7 @@ function parse(saved) {
       .map((h) => ({ ...h, seconds: Math.min(Math.max(h.seconds, 0), MAX_SECONDS) }));
   }
   if (Array.isArray(saved?.log)) state.log = saved.log.filter(isAttempt).slice(0, LOG_LENGTH);
+  if (Array.isArray(saved?.begun)) state.begun = saved.begun.filter(isBegun).slice(0, HISTORY_LENGTH);
   // Another generator builds different puzzles from the same seeds, so work in progress can't carry over.
   if (saved?.generator === GENERATOR) {
     // Tests started before times were kept count from zero.
@@ -155,10 +163,16 @@ export const store = $state(load());
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Both lists as one, newest first, with each record once. A record of `first` wins when two share a key. */
+/**
+ * Both lists as one, newest first, with each record once. Of two that share a key, the later one wins (a test started again),
+ * and on the same date the one in `first`.
+ */
 function union(first, second, keyOf, limit) {
   const records = new Map();
-  for (const x of [...first, ...second]) if (!records.has(keyOf(x))) records.set(keyOf(x), x);
+  for (const x of [...first, ...second]) {
+    const kept = records.get(keyOf(x));
+    if (!kept || x.date > kept.date) records.set(keyOf(x), x);
+  }
   return [...records]
     .sort(([ka, a], [kb, b]) => b.date - a.date || (ka < kb ? -1 : 1))
     .slice(0, limit)
@@ -232,7 +246,7 @@ function mergePractice(mine, theirs) {
 function sync(heard) {
   if (heard === undefined && !canSave) return;
   // The lists stay as they are in the store: copying a long history on every answer would cost more than the save itself.
-  const mine = { theme: store.theme, test: $state.snapshot(store.test), history: store.history, practice: $state.snapshot(store.practice), log: store.log };
+  const mine = { theme: store.theme, test: $state.snapshot(store.test), history: store.history, practice: $state.snapshot(store.practice), log: store.log, begun: store.begun };
   let raw = heard;
   let canRead = true;
   try {
@@ -245,8 +259,8 @@ function sync(heard) {
   // A save cleared since the event has nothing left to merge.
   if (heard !== undefined && !raw) return;
 
-  // Storage this tab has already merged holds no result or practice answer that isn't here too.
-  let theirs = { ...base, history: [], log: [] };
+  // Storage this tab has already merged holds no result, practice answer or started test that isn't here too.
+  let theirs = { ...base, history: [], log: [], begun: [] };
   let changed = false;
   if (raw === null) newer = null;
   else if (raw !== baseRaw) {
@@ -274,6 +288,7 @@ function sync(heard) {
     history,
     practice: changed ? mergePractice(mine.practice, theirs.practice) : mine.practice,
     log: changed ? union(theirs.log, mine.log, JSON.stringify, LOG_LENGTH) : mine.log,
+    begun: changed ? union(theirs.begun, mine.begun, begunKey, HISTORY_LENGTH) : mine.begun,
   };
   for (const [key, value] of Object.entries(shown)) if (value !== mine[key] && !same(value, mine[key])) store[key] = value;
   // A test this tab had on screen, replaced by another tab's new one, hands its route over: the old seed would read as a shared test.
@@ -297,7 +312,12 @@ function sync(heard) {
     adding = [...results.map(resultKey), ...attempts.map((a) => JSON.stringify(a))];
     written = adding.length || shown.theme !== theirs.theme ? JSON.stringify({ ...newer, theme: shown.theme, history: [...results, ...list(newer.history)], log: [...attempts, ...list(newer.log)] }) : raw;
     stored = { ...stored, test: theirs.test, practice: theirs.practice };
-  } else written = JSON.stringify({ generator: GENERATOR, ...stored });
+  } else {
+    written = JSON.stringify({ generator: GENERATOR, ...stored });
+    // A tab still on a version from before `begun` drops it from every save it writes. Adding it back each time would have
+    // the two tabs rewrite the save in turn without end, so a save that lacks only that stays as it is.
+    if (raw && written !== raw && JSON.stringify({ generator: GENERATOR, ...stored, begun: undefined }) === raw) written = raw;
+  }
 
   let inStorage = raw;
   if (written !== raw && canSave && canRead) {
@@ -401,6 +421,8 @@ export function prepareTest(seed = upcoming) {
 export function startTest(seed = upcoming) {
   if (seed === upcoming) upcoming = randomSeed();
   const now = Date.now();
+  const begun = { seed, date: now, generator: GENERATOR };
+  store.begun = [begun, ...store.begun.filter((b) => begunKey(b) !== begunKey(begun))].slice(0, HISTORY_LENGTH);
   store.test = {
     seed,
     answers: Array(TEST_LENGTH).fill(null),
@@ -475,6 +497,9 @@ export const canReview = (h) => Array.isArray(h.answers) && h.answers.length ===
 
 /** The past test a link names. Links made before results had keys carry only the date. */
 export const pastTest = (date, seed) => store.history.find((h) => String(h.date) === String(date) && (seed === undefined || h.seed === seed)) ?? null;
+
+/** Whether this player started a test from this seed that the current generator builds, finished or not. */
+export const hasBegun = (seed) => store.begun.some((b) => b.seed === seed && b.generator === GENERATOR);
 
 /** A test left open past its deadline ends at the deadline. */
 export function expireTest() {

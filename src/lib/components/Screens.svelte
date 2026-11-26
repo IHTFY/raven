@@ -3,7 +3,7 @@
   import { isSeed } from '../engine/rng.js';
   import { rise } from '../motion.js';
   import { route } from '../router.svelte.js';
-  import { canReview, expireTest, pastTest, resultKey, store } from '../state.svelte.js';
+  import { canReview, expireTest, hasBegun, pastTest, resultKey, store } from '../state.svelte.js';
   import History from './History.svelte';
   import Stats from './Stats.svelte';
   import Home from './Home.svelte';
@@ -31,7 +31,8 @@
       const past = taken.find(canReview);
       if (past) return { screen: 'past', key: resultKey(past), past };
       if (taken.length) return { screen: 'home' };
-      if (isSeed(seed)) return { screen: 'home', shared: seed };
+      // A test of yours left unfinished, replaced by a newer one here or in another tab, isn't someone else's either.
+      if (isSeed(seed)) return { screen: 'home', shared: seed, own: hasBegun(seed) };
     }
     return { screen: 'home' };
   });
@@ -52,7 +53,7 @@
     {:else if view.screen === 'practice'}
       <Practice />
     {:else}
-      <Home shared={view.shared} />
+      <Home shared={view.shared} own={view.own} />
     {/if}
   </div>
 {/key}

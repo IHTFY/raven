@@ -67,6 +67,11 @@ describe('saves', () => {
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, outcomes: 'rx' }] },
     { generator: GENERATOR, history: [{ seed: 'xyz', score: 1, total: 2, seconds: 5, date: 9, kinds: ['a', 3] }] },
     { generator: GENERATOR, log: [{ kind: 'tiles:xor', right: 'yes', seconds: 3, target: 2, date: 1 }] },
+    // Tests the player started: a link-shaped seed, a date the formatter can show, and the generator that built it.
+    { generator: GENERATOR, begun: [{ seed: 'a/b', date: 1, generator: GENERATOR }] },
+    { generator: GENERATOR, begun: [{ seed: 'abc', date: -1, generator: GENERATOR }] },
+    { generator: GENERATOR, begun: [{ seed: 'abc', date: 1, generator: '7' }] },
+    { generator: GENERATOR, begun: 'abc' },
     [],
     42,
   ];
@@ -74,7 +79,7 @@ describe('saves', () => {
   it.each(malformed)('starts fresh from a malformed save: %j', async (saved) => {
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
-    expect(store).toEqual({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [] });
+    expect(store).toEqual({ generator: GENERATOR, theme: null, test: null, history: [], practice: null, log: [], begun: [] });
   });
 
   it('keeps the valid results and practice answers next to invalid ones', async () => {
@@ -133,6 +138,7 @@ describe('saves', () => {
       history: [{ seed: 'xyz', score: 20, total: TEST_LENGTH, seconds: 600, date: 5000 }],
       practice: { seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: 'tiles' },
       log: [{ kind: 'tiles:xor', right: true, seconds: 3.2, target: 2.2, date: 4000 }],
+      begun: [{ seed: 'abc', date: 1000, generator: GENERATOR }],
     };
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
@@ -147,6 +153,7 @@ describe('saves', () => {
       history: [aResult({ seed: 'a', date: 0 }), aResult({ seed: 'z'.repeat(24), date: MAX_DATE })],
       practice: aPractice({ seed: 'Q'.repeat(24), group: 'pointer', target: HARDEST, count: 0, right: 0, done: 0 }),
       log: [anAttempt({ target: EASIEST, date: 0 })],
+      begun: [{ seed: 'z'.repeat(24), date: MAX_DATE, generator: GENERATOR }, { seed: 'a', date: 0, generator: 0 }],
     };
     localStorage.setItem('raven', JSON.stringify(saved));
     const { store } = await loadState();
@@ -168,9 +175,11 @@ describe('saves', () => {
   it('keeps history and theme but drops work in progress from another generator', async () => {
     const history = [{ seed: 'xyz', score: 20, total: TEST_LENGTH, seconds: 600, date: 5000 }];
     const practice = { seed: 'def', count: 3, target: 2.2, right: 2, done: 3, choice: null, group: null };
-    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR - 1, theme: 'dark', history, practice }));
+    // Which tests were started stays too: each record names the generator that built its test.
+    const begun = [{ seed: 'def', date: 4000, generator: GENERATOR - 1 }];
+    localStorage.setItem('raven', JSON.stringify({ generator: GENERATOR - 1, theme: 'dark', history, practice, begun }));
     const { store } = await loadState();
-    expect(store).toEqual({ generator: GENERATOR, theme: 'dark', test: null, history, practice: null, log: [] });
+    expect(store).toEqual({ generator: GENERATOR, theme: 'dark', test: null, history, practice: null, log: [], begun });
   });
 });
 
