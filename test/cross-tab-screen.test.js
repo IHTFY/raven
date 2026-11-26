@@ -268,3 +268,50 @@ it('still shows the shared-test invitation for a seed you took with an older gen
   await open('#/test/abc', { history: [{ ...reviewable('abc', 1000, 5000), generator: GENERATOR - 1 }, resultOf('abc', 500, 800)] });
   expect(document.body.textContent).toContain('Someone shared test');
 });
+
+const tapButton = (name) => {
+  [...document.querySelectorAll('button')].find((b) => b.textContent.includes(name)).click();
+  svelte.flushSync();
+};
+
+it('calls a test of yours replaced before you finished it your own when Back reaches its entry, and starts it again', async () => {
+  await open('#/');
+  state.startTest('abc');
+  svelte.flushSync();
+  document.querySelector('[aria-label="Option A"]').click();
+  svelte.flushSync();
+  state.startTest('def');
+  svelte.flushSync();
+  goTo('#/test/abc');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.body.textContent).toContain('You didn’t finish test abc');
+  // Starting it again replaces the test now running, so that takes a second tap.
+  tapButton('Start it again');
+  expect(state.store.test.seed).toBe('def');
+  tapButton('Tap again to replace your test');
+  expect(state.store.test.seed).toBe('abc');
+  expect(state.store.test.answers.every((a) => a === null)).toBe(true);
+});
+
+it('calls your own test replaced by another tab your own after this tab reloads', async () => {
+  await open('#/');
+  state.startTest('abc');
+  svelte.flushSync();
+  otherTabUpdates({ test: { ...aTest(), seed: 'def', started: Date.now() + 1000 }, begun: [{ seed: 'def', date: Date.now() + 1000, generator: GENERATOR }] });
+  // The test plays on here until the tab reloads, and storage holds the other tab's.
+  expect(state.store.test.seed).toBe('abc');
+  const saved = JSON.parse(localStorage.getItem('raven'));
+  expect(saved.test.seed).toBe('def');
+  svelte.unmount(app);
+  for (const listener of listeners.splice(0)) window.removeEventListener('storage', listener);
+  document.body.innerHTML = '';
+  await open('#/test/abc', saved);
+  expect(state.store.test.seed).toBe('def');
+  expect(document.body.textContent).not.toContain('Someone shared test');
+  expect(document.body.textContent).toContain('You didn’t finish test abc');
+});
+
+it('still shows the shared-test invitation for a seed you started with an older generator, which builds a different test', async () => {
+  await open('#/test/abc', { begun: [{ seed: 'abc', date: 1000, generator: GENERATOR - 1 }] });
+  expect(document.body.textContent).toContain('Someone shared test');
+});

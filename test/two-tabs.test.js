@@ -117,6 +117,19 @@ describe('two tabs', () => {
     expect(saved().history.map((h) => h.date)).toEqual([10]);
   });
 
+  it('keeps the tests both tabs started, and only well-formed ones from a save', async () => {
+    localStorage.setItem('raven', whole({ begun: [{ seed: 'old', date: 5, generator: GENERATOR }, { seed: 'bad seed', date: 6, generator: GENERATOR }, { seed: 'nodate', generator: GENERATOR }] }));
+    const { startTest, store, flushSync } = await openTab();
+    expect(store.begun.map((b) => b.seed)).toEqual(['old']);
+    startTest('mine');
+    flushSync();
+    otherTabWrites({ begun: [{ seed: 'theirs', date: 7, generator: GENERATOR }, { seed: 'old', date: 5, generator: GENERATOR }] });
+    store.theme = 'dark';
+    flushSync();
+    expect(store.begun.map((b) => b.seed)).toEqual(['mine', 'theirs', 'old']);
+    expect(saved().begun.map((b) => b.seed)).toEqual(['mine', 'theirs', 'old']);
+  });
+
   it('follows the same test when the other tab answers or finishes it', async () => {
     const { startTest, store, flushSync } = await openTab();
     startTest('abc');
