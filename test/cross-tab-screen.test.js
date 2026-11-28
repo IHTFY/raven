@@ -319,3 +319,115 @@ it('still shows the shared-test invitation for a seed you started with an older 
   await open('#/test/abc', { begun: [{ seed: 'abc', date: 1000, generator: GENERATOR - 1 }] });
   expect(document.body.textContent).toContain('Someone shared test');
 });
+
+it('asks again on Home when another tab finished the warned test and started a new one before the second tap', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  expect(document.body.textContent).toContain('Tap again to start over');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi, history: [resultOf('abc', test.started, Date.now() + 500)] });
+  expect(state.store.test.seed).toBe('ghi');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start a new test');
+  expect(state.store.test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+});
+
+it('asks again before Start it again replaces a newer test another tab started after the first tap', async () => {
+  const test = aTest();
+  await open('#/test/def', { test, begun: [{ seed: 'def', date: 500, generator: GENERATOR }] });
+  tapButton('Start it again');
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi, history: [resultOf('abc', test.started, Date.now() + 500)] });
+  expect(state.store.test.seed).toBe('ghi');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start it again');
+  expect(state.store.test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+});
+
+it('asks again on Home when another tab started a new test after the first tap while this tab plays on the old one', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi });
+  // The old test plays on here, as #71 keeps it, and storage holds the new one.
+  expect(state.store.test.seed).toBe('abc');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start a new test');
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+});
+
+it('asks again on Home when another tab saved a new test that this tab has not heard about yet', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  // Saved, with the storage event still on its way.
+  localStorage.setItem('raven', JSON.stringify({ ...JSON.parse(localStorage.getItem('raven')), test: ghi }));
+  tapButton('Tap again to start over');
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+  tapButton('Tap again to start over');
+  expect(state.store.test.seed).not.toBe('ghi');
+  expect(JSON.parse(localStorage.getItem('raven')).test.seed).toBe(state.store.test.seed);
+});
+
+/** Home with no test running here while storage holds `ghi`, which another tab started while this one played on. */
+async function homeWhileAnotherTabRuns(hash) {
+  await open('#/', { test: aTest() });
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi });
+  state.finishTest();
+  svelte.flushSync();
+  location.hash = hash;
+  await new Promise((r) => setTimeout(r));
+  svelte.flushSync();
+  return ghi;
+}
+
+it('asks again when a benchmark is tapped after Take the test warned about the test another tab started', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/');
+  tapButton('Take the test');
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+  document.querySelector('[aria-label^="Benchmark A"]').click();
+  svelte.flushSync();
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+  expect(document.querySelector('[aria-label^="Benchmark A"]').getAttribute('aria-label')).toContain('tap again');
+});
+
+it('starts a new test at once after a newer version saved without a running test', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  otherTabUpdates({ generator: GENERATOR + 1, test: null });
+  state.finishTest();
+  svelte.flushSync();
+  location.hash = '#/';
+  await new Promise((r) => setTimeout(r));
+  svelte.flushSync();
+  tapButton('Take the test');
+  expect(state.store.test?.finished).toBe(null);
+});
+
+it('asks again on a benchmark after the shared-test button for the same seed warned', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/test/benchmarka');
+  tapButton('Take this test');
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+  document.querySelector('[aria-label^="Benchmark A"]').click();
+  svelte.flushSync();
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+});
+
+it('drops the warning on a benchmark once another tab saved a result it opens instead', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/');
+  document.querySelector('[aria-label^="Benchmark A"]').click();
+  svelte.flushSync();
+  expect(document.querySelector('[aria-label^="Benchmark A"]').getAttribute('aria-label')).toContain('tap again');
+  const saved = JSON.parse(localStorage.getItem('raven'));
+  otherTabUpdates({ test: ghi, history: [reviewable('benchmarka', ghi.started - 500, ghi.started - 100), ...saved.history] });
+  expect(document.querySelector('[aria-label^="Benchmark A"]').getAttribute('aria-label')).toContain('you scored');
+});

@@ -4,7 +4,7 @@
   import { go } from '../router.svelte.js';
   import { TEST_LENGTH } from '../engine/generate.js';
   import { clock, duration, shortDate } from '../format.js';
-  import { TEST_MINUTES, canReview, currentTheme, clearUnbuildable, expireTest, isRunning, prepareTest, resultKey, startTest, store, toggleTheme } from '../state.svelte.js';
+  import { TEST_MINUTES, canReview, currentTheme, clearUnbuildable, expireTest, isRunning, prepareTest, resultKey, secondTap, store, toggleTheme } from '../state.svelte.js';
   import { currentBenchmarks, firstTry } from '../benchmarks.js';
   import AdBox from './AdBox.svelte';
   import Icon from './Icon.svelte';
@@ -51,20 +51,7 @@
   $effect(() => prepareTest(shared ?? undefined));
 
   // Starting over loses a test in progress, so that takes a second tap.
-  let confirming = $state(false);
-  $effect(() => {
-    if (!confirming) return;
-    const id = setTimeout(() => (confirming = false), 4000);
-    return () => clearTimeout(id);
-  });
-
-  function begin(seed) {
-    if (running && !confirming) {
-      confirming = true;
-      return;
-    }
-    startTest(seed);
-  }
+  const restart = secondTap();
 </script>
 
 <svelte:document onclick={toggleFromSnapshot} />
@@ -89,8 +76,8 @@
       {:else}
         <p class="note">Someone shared test <b>{shared}</b> with you.</p>
       {/if}
-      <button class="btn big primary" onclick={() => begin(shared)}>
-        {confirming ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
+      <button class="btn big primary" onclick={() => restart.begin(shared, 'shared')}>
+        {restart.confirming('shared') ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
       </button>
       {#if running}
         <button class="btn" onclick={() => go(`test/${running.seed}`)}>
@@ -101,9 +88,9 @@
       <button class="btn big primary" onclick={() => go(`test/${running.seed}`)}>
         Resume test <span class="muted tabular">{clock(running.deadline - now)} left</span>
       </button>
-      <button class="btn" onclick={() => begin()}>{confirming ? 'Tap again to start over' : 'Start a new test'}</button>
+      <button class="btn" onclick={() => restart.begin()}>{restart.confirming() ? 'Tap again to start over' : 'Start a new test'}</button>
     {:else}
-      <button class="btn big primary" onclick={() => begin()}>Take the test</button>
+      <button class="btn big primary" onclick={() => restart.begin()}>{restart.confirming() ? 'Tap again to replace your test' : 'Take the test'}</button>
       <p class="muted small">{TEST_LENGTH} puzzles · {TEST_MINUTES} minutes · easy to hard</p>
     {/if}
     <button class="btn" onclick={() => go('practice')}>Practice <span class="muted">no timer</span></button>
@@ -116,9 +103,10 @@
       <div class="row">
         {#each currentBenchmarks() as b (b.id)}
           {@const first = firstTry(b, store.history)}
-          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : begin(b.seed))} aria-label="{b.name}{first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
+          {@const warning = !(first && canReview(first)) && restart.confirming(b.id)}
+          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : restart.begin(b.seed, b.id))} aria-label="{b.name}{warning ? ': tap again to replace your test' : first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
             <span>{b.name.replace('Benchmark ', '')}</span>
-            <span class="muted tabular">{first ? `${first.score}/${first.total}` : 'Take'}</span>
+            <span class="muted tabular">{warning ? 'Tap again' : first ? `${first.score}/${first.total}` : 'Take'}</span>
           </button>
         {/each}
       </div>

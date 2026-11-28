@@ -335,7 +335,16 @@ function sync(heard) {
     base = held(stored);
   } else base = held(theirs);
   baseRaw = inStorage;
+  // A newer version's save keeps its own test, which this tab never replaces.
+  savedRun = newer ? null : runKey(base.test);
 }
+
+/** A running test as one value, or null. */
+function runKey(test) {
+  return test && !test.finished ? `${test.seed}/${test.started}` : null;
+}
+/** The running test storage held at the last read or write, which can differ from the one this tab plays on. */
+let savedRun = $state(runKey(base.test));
 
 $effect.root(() => {
   $effect(() => sync());
@@ -438,6 +447,43 @@ export function startTest(seed = upcoming) {
 export const scoreOf = (test) => puzzlesFor(test.seed).filter((p, i) => test.answers[i] === p.answer).length;
 
 export const isRunning = (test) => test && !test.finished;
+
+/**
+ * Starting a test while another runs loses that one, so it takes a second tap on the same button within 4 s. The first tap
+ * names the tests it warned about: the one running here and the one storage holds, which differ while this tab plays on a
+ * test another tab replaced. If either changes before the second tap, that tap warns again. Call during component setup.
+ */
+export function secondTap() {
+  const attempt = () => {
+    const here = runKey(store.test);
+    return here || savedRun ? `${here} ${savedRun}` : null;
+  };
+  /** The warning for one button. */
+  const warning = (button) => `${attempt()} ${button ?? ''}`;
+  let warned = $state(null);
+  $effect(() => {
+    if (warned === null) return;
+    const id = setTimeout(() => (warned = null), 4000);
+    return () => clearTimeout(id);
+  });
+  const confirming = (button) => warned !== null && warned === warning(button);
+  return {
+    /** Whether `button` (the seed it starts, unless named otherwise in `begin`) is showing its warning. */
+    confirming,
+    /** Warn, or start the test with `seed` (the next new test when it's left out). Name `button` when two buttons start the same seed. */
+    begin(seed, button = seed) {
+      // Another tab's save can be in storage before its event reaches this tab.
+      sync();
+      if (attempt() !== null && !confirming(button)) {
+        warned = warning(button);
+        return;
+      }
+      startTest(seed);
+      // Saved at once, so no other tab's save comes between the check and this one.
+      sync();
+    },
+  };
+}
 
 /** Answer the current puzzle, unless time is up. Returns whether the answer counts. */
 export function answerTest(k) {
