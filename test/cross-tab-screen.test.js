@@ -377,16 +377,21 @@ it('asks again on Home when another tab saved a new test that this tab has not h
   expect(JSON.parse(localStorage.getItem('raven')).test.seed).toBe(state.store.test.seed);
 });
 
-it('asks again when a benchmark is tapped after Take the test warned about the test another tab started', async () => {
-  const test = aTest();
-  await open('#/', { test });
+/** Home with no test running here while storage holds `ghi`, which another tab started while this one played on. */
+async function homeWhileAnotherTabRuns(hash) {
+  await open('#/', { test: aTest() });
   const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
   otherTabUpdates({ test: ghi });
   state.finishTest();
   svelte.flushSync();
-  location.hash = '#/';
+  location.hash = hash;
   await new Promise((r) => setTimeout(r));
   svelte.flushSync();
+  return ghi;
+}
+
+it('asks again when a benchmark is tapped after Take the test warned about the test another tab started', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/');
   tapButton('Take the test');
   expect(document.body.textContent).toContain('Tap again to replace your test');
   document.querySelector('[aria-label^="Benchmark A"]').click();
@@ -406,4 +411,23 @@ it('starts a new test at once after a newer version saved without a running test
   svelte.flushSync();
   tapButton('Take the test');
   expect(state.store.test?.finished).toBe(null);
+});
+
+it('asks again on a benchmark after the shared-test button for the same seed warned', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/test/benchmarka');
+  tapButton('Take this test');
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+  document.querySelector('[aria-label^="Benchmark A"]').click();
+  svelte.flushSync();
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+});
+
+it('drops the warning on a benchmark once another tab saved a result it opens instead', async () => {
+  const ghi = await homeWhileAnotherTabRuns('#/');
+  document.querySelector('[aria-label^="Benchmark A"]').click();
+  svelte.flushSync();
+  expect(document.querySelector('[aria-label^="Benchmark A"]').getAttribute('aria-label')).toContain('tap again');
+  const saved = JSON.parse(localStorage.getItem('raven'));
+  otherTabUpdates({ test: ghi, history: [reviewable('benchmarka', ghi.started - 500, ghi.started - 100), ...saved.history] });
+  expect(document.querySelector('[aria-label^="Benchmark A"]').getAttribute('aria-label')).toContain('you scored');
 });

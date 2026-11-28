@@ -76,8 +76,8 @@
       {:else}
         <p class="note">Someone shared test <b>{shared}</b> with you.</p>
       {/if}
-      <button class="btn big primary" onclick={() => restart.begin(shared)}>
-        {restart.confirming(shared) ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
+      <button class="btn big primary" onclick={() => restart.begin(shared, 'shared')}>
+        {restart.confirming('shared') ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
       </button>
       {#if running}
         <button class="btn" onclick={() => go(`test/${running.seed}`)}>
@@ -103,9 +103,10 @@
       <div class="row">
         {#each currentBenchmarks() as b (b.id)}
           {@const first = firstTry(b, store.history)}
-          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : restart.begin(b.seed))} aria-label="{b.name}{restart.confirming(b.seed) ? ': tap again to replace your test' : first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
+          {@const warning = !(first && canReview(first)) && restart.confirming(b.id)}
+          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : restart.begin(b.seed, b.id))} aria-label="{b.name}{warning ? ': tap again to replace your test' : first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
             <span>{b.name.replace('Benchmark ', '')}</span>
-            <span class="muted tabular">{restart.confirming(b.seed) ? 'Tap again' : first ? `${first.score}/${first.total}` : 'Take'}</span>
+            <span class="muted tabular">{warning ? 'Tap again' : first ? `${first.score}/${first.total}` : 'Take'}</span>
           </button>
         {/each}
       </div>

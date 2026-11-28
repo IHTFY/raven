@@ -458,24 +458,24 @@ export function secondTap() {
     const here = runKey(store.test);
     return here || savedRun ? `${here} ${savedRun}` : null;
   };
-  /** The warning for the button that starts `seed` (a new test when it's left out). */
-  const warning = (seed) => `${attempt()} ${seed ?? ''}`;
+  /** The warning for one button. */
+  const warning = (button) => `${attempt()} ${button ?? ''}`;
   let warned = $state(null);
   $effect(() => {
     if (warned === null) return;
     const id = setTimeout(() => (warned = null), 4000);
     return () => clearTimeout(id);
   });
-  const confirming = (seed) => warned !== null && warned === warning(seed);
+  const confirming = (button) => warned !== null && warned === warning(button);
   return {
-    /** Whether the button that starts `seed` is showing its warning. */
+    /** Whether `button` (the seed it starts, unless named otherwise in `begin`) is showing its warning. */
     confirming,
-    /** Warn, or start the test with `seed` (the next new test when it's left out). */
-    begin(seed) {
+    /** Warn, or start the test with `seed` (the next new test when it's left out). Name `button` when two buttons start the same seed. */
+    begin(seed, button = seed) {
       // Another tab's save can be in storage before its event reaches this tab.
       sync();
-      if (attempt() !== null && !confirming(seed)) {
-        warned = warning(seed);
+      if (attempt() !== null && !confirming(button)) {
+        warned = warning(button);
         return;
       }
       startTest(seed);
