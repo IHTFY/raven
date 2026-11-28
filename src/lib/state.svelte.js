@@ -335,7 +335,8 @@ function sync(heard) {
     base = held(stored);
   } else base = held(theirs);
   baseRaw = inStorage;
-  savedRun = runKey(base.test);
+  // A newer version's save keeps its own test, which this tab never replaces.
+  savedRun = newer ? null : runKey(base.test);
 }
 
 /** A running test as one value, or null. */
@@ -448,34 +449,38 @@ export const scoreOf = (test) => puzzlesFor(test.seed).filter((p, i) => test.ans
 export const isRunning = (test) => test && !test.finished;
 
 /**
- * Starting a test while another runs loses that one, so it takes a second tap within 4 s. The first tap names the tests it
- * warned about: the one running here and the one storage holds, which differ while this tab plays on a test another tab
- * replaced. If either changes before the second tap, that tap warns again. Call during component setup.
+ * Starting a test while another runs loses that one, so it takes a second tap on the same button within 4 s. The first tap
+ * names the tests it warned about: the one running here and the one storage holds, which differ while this tab plays on a
+ * test another tab replaced. If either changes before the second tap, that tap warns again. Call during component setup.
  */
 export function secondTap() {
   const attempt = () => {
     const here = runKey(store.test);
     return here || savedRun ? `${here} ${savedRun}` : null;
   };
+  /** The warning for the button that starts `seed` (a new test when it's left out). */
+  const warning = (seed) => `${attempt()} ${seed ?? ''}`;
   let warned = $state(null);
   $effect(() => {
     if (warned === null) return;
     const id = setTimeout(() => (warned = null), 4000);
     return () => clearTimeout(id);
   });
+  const confirming = (seed) => warned !== null && warned === warning(seed);
   return {
-    get confirming() {
-      return warned !== null && warned === attempt();
-    },
+    /** Whether the button that starts `seed` is showing its warning. */
+    confirming,
     /** Warn, or start the test with `seed` (the next new test when it's left out). */
     begin(seed) {
       // Another tab's save can be in storage before its event reaches this tab.
       sync();
-      if (attempt() !== null && !this.confirming) {
-        warned = attempt();
+      if (attempt() !== null && !confirming(seed)) {
+        warned = warning(seed);
         return;
       }
       startTest(seed);
+      // Saved at once, so no other tab's save comes between the check and this one.
+      sync();
     },
   };
 }

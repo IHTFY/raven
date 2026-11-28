@@ -77,7 +77,7 @@
         <p class="note">Someone shared test <b>{shared}</b> with you.</p>
       {/if}
       <button class="btn big primary" onclick={() => restart.begin(shared)}>
-        {restart.confirming ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
+        {restart.confirming(shared) ? 'Tap again to replace your test' : own ? 'Start it again' : 'Take this test'}
       </button>
       {#if running}
         <button class="btn" onclick={() => go(`test/${running.seed}`)}>
@@ -88,9 +88,9 @@
       <button class="btn big primary" onclick={() => go(`test/${running.seed}`)}>
         Resume test <span class="muted tabular">{clock(running.deadline - now)} left</span>
       </button>
-      <button class="btn" onclick={() => restart.begin()}>{restart.confirming ? 'Tap again to start over' : 'Start a new test'}</button>
+      <button class="btn" onclick={() => restart.begin()}>{restart.confirming() ? 'Tap again to start over' : 'Start a new test'}</button>
     {:else}
-      <button class="btn big primary" onclick={() => restart.begin()}>Take the test</button>
+      <button class="btn big primary" onclick={() => restart.begin()}>{restart.confirming() ? 'Tap again to replace your test' : 'Take the test'}</button>
       <p class="muted small">{TEST_LENGTH} puzzles · {TEST_MINUTES} minutes · easy to hard</p>
     {/if}
     <button class="btn" onclick={() => go('practice')}>Practice <span class="muted">no timer</span></button>
@@ -103,9 +103,9 @@
       <div class="row">
         {#each currentBenchmarks() as b (b.id)}
           {@const first = firstTry(b, store.history)}
-          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : restart.begin(b.seed))} aria-label="{b.name}{first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
+          <button class="btn" onclick={() => (first && canReview(first) ? go(`history/${resultKey(first)}`) : restart.begin(b.seed))} aria-label="{b.name}{restart.confirming(b.seed) ? ': tap again to replace your test' : first ? `: you scored ${first.score} of ${first.total}` : ', not taken'}">
             <span>{b.name.replace('Benchmark ', '')}</span>
-            <span class="muted tabular">{first ? `${first.score}/${first.total}` : 'Take'}</span>
+            <span class="muted tabular">{restart.confirming(b.seed) ? 'Tap again' : first ? `${first.score}/${first.total}` : 'Take'}</span>
           </button>
         {/each}
       </div>

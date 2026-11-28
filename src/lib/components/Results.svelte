@@ -95,7 +95,7 @@
     <p class="muted small">Tap a puzzle to see the answer and why.</p>
 
     <footer>
-      <button class="btn big primary" onclick={() => restart.begin()}>{restart.confirming ? 'Tap again to start over' : 'New test'}</button>
+      <button class="btn big primary" onclick={() => restart.begin()}>{restart.confirming() ? 'Tap again to start over' : 'New test'}</button>
       <button class="btn big" onclick={() => go('practice')}>Practice</button>
     </footer>
   </main>
