@@ -159,7 +159,60 @@ function load() {
   }
 }
 
-export const store = $state(load());
+/**
+ * The app's state. The test, practice and theme are deep state, changed in place as you play. Results, practice answers and
+ * started tests are records that are only ever added or dropped by replacing the whole list, so those lists are raw: deep state
+ * would give every value in every record its own signal, and the save, which reads them all, would keep thousands of them.
+ */
+function reactive(state) {
+  let theme = $state(state.theme);
+  let test = $state(state.test);
+  let practice = $state(state.practice);
+  let history = $state.raw(state.history);
+  let log = $state.raw(state.log);
+  let begun = $state.raw(state.begun);
+  return {
+    generator: state.generator,
+    get theme() {
+      return theme;
+    },
+    set theme(value) {
+      theme = value;
+    },
+    get test() {
+      return test;
+    },
+    set test(value) {
+      test = value;
+    },
+    get history() {
+      return history;
+    },
+    set history(value) {
+      history = value;
+    },
+    get practice() {
+      return practice;
+    },
+    set practice(value) {
+      practice = value;
+    },
+    get log() {
+      return log;
+    },
+    set log(value) {
+      log = value;
+    },
+    get begun() {
+      return begun;
+    },
+    set begun(value) {
+      begun = value;
+    },
+  };
+}
+
+export const store = reactive(load());
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 

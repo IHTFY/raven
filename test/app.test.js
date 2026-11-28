@@ -340,3 +340,17 @@ describe('keyboard shortcuts', () => {
     expect(pressesControl(key('ArrowRight', option))).toBe(false);
   });
 });
+
+it('keeps results, practice answers and started tests as plain records, so the save does not track every value in them', async () => {
+  const state = await loadState();
+  const result = aResult({ generator: GENERATOR, answers: Array(TEST_LENGTH).fill(0) });
+  const attempt = anAttempt();
+  const begun = { seed: 'xyz', date: 4, generator: GENERATOR };
+  state.store.history = [result];
+  state.store.log = [attempt];
+  state.store.begun = [begun];
+  // Deep state would hand back a proxy of each record, with a signal for every value the save reads.
+  expect(state.store.history[0]).toBe(result);
+  expect(state.store.log[0]).toBe(attempt);
+  expect(state.store.begun[0]).toBe(begun);
+});
