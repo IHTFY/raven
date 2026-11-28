@@ -347,3 +347,32 @@ it('asks again before Start it again replaces a newer test another tab started a
   expect(state.store.test).toEqual(ghi);
   expect(document.body.textContent).toContain('Tap again to replace your test');
 });
+
+it('asks again on Home when another tab started a new test after the first tap while this tab plays on the old one', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi });
+  // The old test plays on here, as #71 keeps it, and storage holds the new one.
+  expect(state.store.test.seed).toBe('abc');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start a new test');
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+});
+
+it('asks again on Home when another tab saved a new test that this tab has not heard about yet', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  // Saved, with the storage event still on its way.
+  localStorage.setItem('raven', JSON.stringify({ ...JSON.parse(localStorage.getItem('raven')), test: ghi }));
+  tapButton('Tap again to start over');
+  expect(JSON.parse(localStorage.getItem('raven')).test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+  tapButton('Tap again to start over');
+  expect(state.store.test.seed).not.toBe('ghi');
+  expect(JSON.parse(localStorage.getItem('raven')).test.seed).toBe(state.store.test.seed);
+});

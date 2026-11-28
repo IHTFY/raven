@@ -335,7 +335,15 @@ function sync(heard) {
     base = held(stored);
   } else base = held(theirs);
   baseRaw = inStorage;
+  savedRun = runKey(base.test);
 }
+
+/** A running test as one value, or null. */
+function runKey(test) {
+  return test && !test.finished ? `${test.seed}/${test.started}` : null;
+}
+/** The running test storage held at the last read or write, which can differ from the one this tab plays on. */
+let savedRun = $state(runKey(base.test));
 
 $effect.root(() => {
   $effect(() => sync());
@@ -440,11 +448,15 @@ export const scoreOf = (test) => puzzlesFor(test.seed).filter((p, i) => test.ans
 export const isRunning = (test) => test && !test.finished;
 
 /**
- * Starting a test while another runs loses that one, so it takes a second tap within 4 s. The first tap names the attempt
- * it warned about; if another tab finishes or replaces it meanwhile, the next tap warns again. Call during component setup.
+ * Starting a test while another runs loses that one, so it takes a second tap within 4 s. The first tap names the tests it
+ * warned about: the one running here and the one storage holds, which differ while this tab plays on a test another tab
+ * replaced. If either changes before the second tap, that tap warns again. Call during component setup.
  */
 export function secondTap() {
-  const attempt = () => (isRunning(store.test) ? `${store.test.seed}/${store.test.started}` : null);
+  const attempt = () => {
+    const here = runKey(store.test);
+    return here || savedRun ? `${here} ${savedRun}` : null;
+  };
   let warned = $state(null);
   $effect(() => {
     if (warned === null) return;
@@ -457,6 +469,8 @@ export function secondTap() {
     },
     /** Warn, or start the test with `seed` (the next new test when it's left out). */
     begin(seed) {
+      // Another tab's save can be in storage before its event reaches this tab.
+      sync();
       if (attempt() !== null && !this.confirming) {
         warned = attempt();
         return;
