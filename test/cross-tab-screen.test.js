@@ -319,3 +319,31 @@ it('still shows the shared-test invitation for a seed you started with an older 
   await open('#/test/abc', { begun: [{ seed: 'abc', date: 1000, generator: GENERATOR - 1 }] });
   expect(document.body.textContent).toContain('Someone shared test');
 });
+
+it('asks again on Home when another tab finished the warned test and started a new one before the second tap', async () => {
+  const test = aTest();
+  await open('#/', { test });
+  tapButton('Start a new test');
+  expect(document.body.textContent).toContain('Tap again to start over');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi, history: [resultOf('abc', test.started, Date.now() + 500)] });
+  expect(state.store.test.seed).toBe('ghi');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start a new test');
+  expect(state.store.test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to start over');
+});
+
+it('asks again before Start it again replaces a newer test another tab started after the first tap', async () => {
+  const test = aTest();
+  await open('#/test/def', { test, begun: [{ seed: 'def', date: 500, generator: GENERATOR }] });
+  tapButton('Start it again');
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+  const ghi = { ...aTest(), seed: 'ghi', started: Date.now() + 1000 };
+  otherTabUpdates({ test: ghi, history: [resultOf('abc', test.started, Date.now() + 500)] });
+  expect(state.store.test.seed).toBe('ghi');
+  expect(document.body.textContent).not.toContain('Tap again');
+  tapButton('Start it again');
+  expect(state.store.test).toEqual(ghi);
+  expect(document.body.textContent).toContain('Tap again to replace your test');
+});

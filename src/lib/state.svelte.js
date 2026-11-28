@@ -439,6 +439,33 @@ export const scoreOf = (test) => puzzlesFor(test.seed).filter((p, i) => test.ans
 
 export const isRunning = (test) => test && !test.finished;
 
+/**
+ * Starting a test while another runs loses that one, so it takes a second tap within 4 s. The first tap names the attempt
+ * it warned about; if another tab finishes or replaces it meanwhile, the next tap warns again. Call during component setup.
+ */
+export function secondTap() {
+  const attempt = () => (isRunning(store.test) ? `${store.test.seed}/${store.test.started}` : null);
+  let warned = $state(null);
+  $effect(() => {
+    if (warned === null) return;
+    const id = setTimeout(() => (warned = null), 4000);
+    return () => clearTimeout(id);
+  });
+  return {
+    get confirming() {
+      return warned !== null && warned === attempt();
+    },
+    /** Warn, or start the test with `seed` (the next new test when it's left out). */
+    begin(seed) {
+      if (attempt() !== null && !this.confirming) {
+        warned = attempt();
+        return;
+      }
+      startTest(seed);
+    },
+  };
+}
+
 /** Answer the current puzzle, unless time is up. Returns whether the answer counts. */
 export function answerTest(k) {
   const test = store.test;
